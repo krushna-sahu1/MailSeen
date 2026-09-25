@@ -216,6 +216,7 @@
       background: var(--green);
       border-radius: 999px;
       transition: width 0.4s ease;
+      width: 0%;
     }
 
     /* Search & Filter Bar */
@@ -611,7 +612,7 @@
           <span style="font-size: 13px; color: var(--green); font-weight: 500;">({{ stats.opened_emails }}/{{ stats.total_emails }})</span>
         </div>
         <div class="progress-bar">
-          <div class="progress-fill" style="width: {{ stats.open_rate }}%;"></div>
+          <div class="progress-fill" data-rate="{{ stats.open_rate }}"></div>
         </div>
       </div>
 
@@ -780,7 +781,15 @@
       });
     }
 
+    function renderProgressBar() {
+      document.querySelectorAll(".progress-fill").forEach(el => {
+        const rate = el.getAttribute("data-rate");
+        if (rate !== null) el.style.width = rate + "%";
+      });
+    }
+
     renderAllTimes();
+    renderProgressBar();
 
     // Toast
     let toastTimer = null;
