@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Gmail Email Open Tracker - Settings</title>
+  <style>
+    :root {
+      --bg: #0f1115;
+      --card: #171a21;
+      --border: #262b36;
+      --text: #e7e9ee;
+      --muted: #8b93a7;
+      --accent: #5b8cff;
+      --green: #3ecf8e;
+      --red: #ff6b6b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      padding: 32px 20px;
+      line-height: 1.5;
+    }
+    .container {
+      max-width: 680px;
+      margin: 0 auto;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    h1 { margin: 0; font-size: 20px; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .card-title {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .form-group {
+      margin-bottom: 16px;
+    }
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    input[type="text"] {
+      width: 100%;
+      background: #0f1115;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: #fff;
+      padding: 8px 12px;
+      font-size: 13px;
+      outline: none;
+    }
+    input[type="text"]:focus {
+      border-color: var(--accent);
+    }
+    .hint {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+    .checkbox-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .checkbox-row input {
+      margin-top: 3px;
+    }
+    .btn {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-secondary {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover {
+      color: #fff;
+      border-color: #fff;
+    }
+    .status-msg {
+      margin-left: 12px;
+      font-size: 13px;
+      color: var(--green);
+    }
+    code {
+      background: #10131a;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-family: monospace;
+    }
+    .guide-box {
+      font-size: 13px;
+      color: var(--muted);
+      background: #10131a;
+      border-radius: 8px;
+      padding: 14px;
+      margin-top: 16px;
+    }
+    .guide-box ol {
+      margin: 8px 0 0 18px;
+      padding: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <img src="icons/icon48.png" alt="Logo" width="36" height="36">
+      <div>
+        <h1>Gmail Email Open Tracker Settings</h1>
+        <div style="font-size: 12px; color: var(--muted);">Extension configuration & instructions</div>
+      </div>
+    </header>
+
+    <div class="card">
+      <div class="card-title">📡 Server Configuration</div>
+      <div class="form-group">
+        <label for="backendUrl">Backend Server URL</label>
+        <div style="display: flex; gap: 8px;">
+          <input type="text" id="backendUrl" placeholder="http://localhost:5000">
+          <button type="button" id="btnTest" class="btn btn-secondary">Test Connection</button>
+        </div>
+        <div class="hint" id="testResult">Enter your public HTTPS URL (e.g. <code>https://your-app.onrender.com</code>) or <code>http://localhost:5000</code> for local testing.</div>
+        <div id="localhostNotice" style="display:none; margin-top:10px; padding:10px 14px; background:rgba(245,166,35,0.12); border:1px solid rgba(245,166,35,0.3); border-radius:8px; font-size:12px; color:#f5a623; line-height:1.5;">
+          ⚠️ <strong>Localhost Warning:</strong> If your server URL is set to <code>localhost</code> or <code>127.0.0.1</code>, emails you send to other people <strong>cannot</strong> contact your computer, and Google's Image Proxy will reject the connection! For external tracking, you must use a public HTTPS URL (e.g. via <code>ngrok http 5000</code> or free hosting on Render).
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">⚙️ Tracking & Transparency</div>
+      <div class="checkbox-row">
+        <input type="checkbox" id="toggleTracking">
+        <div>
+          <strong>Enable open tracking by default</strong>
+          <div class="hint">Automatically inject 1x1 tracking pixel when sending emails from Gmail. You can also toggle tracking per-email directly inside Gmail's compose window.</div>
+        </div>
+      </div>
+
+      <div class="checkbox-row" style="margin-top: 16px;">
+        <input type="checkbox" id="toggleDisclosure">
+        <div>
+          <strong>Visible disclosure footer</strong>
+          <div class="hint">Appends a subtle transparency line in the email footer.</div>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-top: 14px;" id="disclosureGroup">
+        <label for="disclosureText">Disclosure text</label>
+        <input type="text" id="disclosureText" placeholder="⚡ ">
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📖 How It Works</div>
+      <div class="guide-box">
+        <ol>
+          <li>Open <strong>mail.google.com</strong> and click <strong>Compose</strong>.</li>
+          <li>You'll notice a green <strong>👁️ Tracked</strong> badge in the bottom toolbar next to the Send button.</li>
+          <li>When you click <strong>Send</strong> (or press <strong>Ctrl+Enter</strong> / <strong>Cmd+Enter</strong>), the extension automatically calls <code>/new</code> on your backend server using the subject and recipient as the label.</li>
+          <li>It inserts the invisible 1x1 tracking pixel and footer disclosure into the email body right before sending.</li>
+          <li>When the recipient opens the email, your backend server logs the open event! Opens from your filtered IP are automatically excluded from the count.</li>
+        </ol>
+      </div>
+    </div>
+
+    <div style="display: flex; align-items: center;">
+      <button type="button" id="btnSave" class="btn">Save All Settings</button>
+      <span id="saveStatus" class="status-msg"></span>
+    </div>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>

@@ -1,0 +1,1488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Email Tracker · Minimalist Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #090b10;
+      --surface: #11141d;
+      --surface-elevated: #171b26;
+      --border: #1e2433;
+      --border-focus: #3b4461;
+      --text: #f0f2f7;
+      --text-muted: #838da1;
+      --text-dim: #545d73;
+      --primary: #4f46e5;
+      --primary-hover: #6366f1;
+      --primary-glow: rgba(99, 102, 241, 0.15);
+      --green: #10b981;
+      --green-bg: rgba(16, 185, 129, 0.12);
+      --green-border: rgba(16, 185, 129, 0.25);
+      --amber: #f59e0b;
+      --amber-bg: rgba(245, 158, 11, 0.12);
+      --amber-border: rgba(245, 158, 11, 0.25);
+      --rose: #ef4444;
+      --rose-bg: rgba(239, 68, 68, 0.12);
+      --rose-border: rgba(239, 68, 68, 0.25);
+      --blue: #3b82f6;
+      --blue-bg: rgba(59, 130, 246, 0.12);
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+      --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 14px;
+      line-height: 1.5;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .container {
+      max-width: 1040px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 24px 20px 80px;
+    }
+
+    /* Top Bar */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 24px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-icon {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, #4f46e5, #818cf8);
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      box-shadow: 0 4px 12px var(--primary-glow);
+    }
+
+    .brand-text h1 {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .live-dot {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--green);
+      background: var(--green-bg);
+      border: 1px solid var(--green-border);
+      padding: 1px 7px;
+      border-radius: 999px;
+    }
+
+    .live-dot::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 6px var(--green);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.85); }
+    }
+
+    .brand-text p {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 13px;
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      transition: all 0.15s ease;
+      user-select: none;
+      text-decoration: none;
+    }
+
+    .btn:hover {
+      background: var(--surface-elevated);
+      border-color: var(--border-focus);
+    }
+
+    .btn:active {
+      transform: translateY(1px);
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-hover);
+      border-color: var(--primary-hover);
+      box-shadow: 0 4px 14px var(--primary-glow);
+    }
+
+    .btn-danger {
+      color: var(--rose);
+      border-color: rgba(239, 68, 68, 0.25);
+    }
+
+    .btn-danger:hover {
+      background: var(--rose-bg);
+      border-color: var(--rose);
+    }
+
+    .btn-sm {
+      padding: 4px 8px;
+      font-size: 11px;
+    }
+
+    /* Notice banner for localhost */
+    .alert-banner {
+      background: rgba(245, 158, 11, 0.08);
+      border: 1px solid var(--amber-border);
+      border-radius: var(--radius-md);
+      padding: 14px 18px;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+    }
+
+    .alert-icon {
+      font-size: 20px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .alert-content {
+      flex: 1;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .alert-content strong {
+      color: #fbbf24;
+      display: block;
+      margin-bottom: 2px;
+      font-size: 14px;
+    }
+
+    .alert-code-row {
+      margin-top: 8px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .code-chip {
+      background: #0b0d14;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 3px 8px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: #a5b4fc;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      user-select: all;
+    }
+
+    .code-chip:hover {
+      border-color: var(--primary);
+    }
+
+    /* Stats Grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 16px 18px;
+      display: flex;
+      flex-direction: column;
+      transition: border-color 0.15s ease;
+    }
+
+    .stat-card:hover {
+      border-color: var(--border-focus);
+    }
+
+    .stat-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .stat-value {
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text);
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+    }
+
+    .stat-sub {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-top: 4px;
+    }
+
+    .progress-bar {
+      height: 4px;
+      background: var(--border);
+      border-radius: 999px;
+      margin-top: 10px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #10b981, #34d399);
+      border-radius: 999px;
+      transition: width 0.4s ease;
+    }
+
+    /* Filter Drawer Panel */
+    .drawer-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 18px 20px;
+      margin-bottom: 24px;
+      display: none;
+    }
+
+    .drawer-panel.is-open {
+      display: block;
+      animation: fadeIn 0.2s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .drawer-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .drawer-title {
+      font-size: 14px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .ip-current-box {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      padding: 10px 14px;
+      background: #0b0d14;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      margin-bottom: 14px;
+    }
+
+    .ip-meta {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+    }
+
+    .ip-code {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: #93c5fd;
+      font-weight: 600;
+    }
+
+    .custom-ip-form {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .input-text {
+      background: #0b0d14;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 6px 12px;
+      color: var(--text);
+      font-size: 12px;
+      outline: none;
+      transition: border-color 0.15s ease;
+      font-family: inherit;
+    }
+
+    .input-text:focus {
+      border-color: var(--primary);
+    }
+
+    .ignored-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    .ignored-table th, .ignored-table td {
+      padding: 7px 10px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .ignored-table th {
+      color: var(--text-dim);
+      font-weight: 500;
+      text-transform: uppercase;
+      font-size: 10px;
+      letter-spacing: 0.5px;
+    }
+
+    /* Toolbar: Search, Filters, Sort */
+    .toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    .search-box {
+      position: relative;
+      flex: 1;
+      min-width: 240px;
+      max-width: 380px;
+    }
+
+    .search-input {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 8px 12px 8px 32px;
+      color: var(--text);
+      font-size: 13px;
+      outline: none;
+      font-family: inherit;
+      transition: border-color 0.15s ease;
+    }
+
+    .search-input:focus {
+      border-color: var(--border-focus);
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-dim);
+      font-size: 13px;
+      pointer-events: none;
+    }
+
+    .filter-tabs {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: var(--surface);
+      padding: 3px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+    }
+
+    .filter-tab {
+      padding: 5px 11px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-muted);
+      cursor: pointer;
+      border: none;
+      background: transparent;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .filter-tab:hover {
+      color: var(--text);
+    }
+
+    .filter-tab.is-active {
+      background: var(--surface-elevated);
+      color: var(--text);
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    .filter-count {
+      font-size: 10px;
+      padding: 1px 5px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-muted);
+    }
+
+    .filter-tab.is-active .filter-count {
+      background: var(--border);
+      color: var(--text);
+    }
+
+    /* Email Items Card List */
+    .email-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .email-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      transition: border-color 0.15s ease, transform 0.15s ease;
+      overflow: hidden;
+    }
+
+    .email-card:hover {
+      border-color: var(--border-focus);
+    }
+
+    .email-main {
+      padding: 16px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .email-info {
+      flex: 1;
+      min-width: 260px;
+    }
+
+    .email-title-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 6px;
+    }
+
+    .email-subject {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: -0.01em;
+      word-break: break-word;
+    }
+
+    .email-recipient {
+      font-size: 12px;
+      color: #93c5fd;
+      background: var(--blue-bg);
+      border: 1px solid rgba(59, 130, 246, 0.2);
+      padding: 1px 7px;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+    }
+
+    .email-meta {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 12px;
+      color: var(--text-muted);
+      flex-wrap: wrap;
+    }
+
+    .email-id-chip {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-dim);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .email-id-chip:hover {
+      color: var(--text-muted);
+    }
+
+    /* Badges */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+      border: 1px solid transparent;
+    }
+
+    .badge-opened {
+      background: var(--green-bg);
+      color: var(--green);
+      border-color: var(--green-border);
+    }
+
+    .badge-waiting {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-muted);
+      border-color: var(--border);
+    }
+
+    .badge-self {
+      background: var(--amber-bg);
+      color: var(--amber);
+      border-color: var(--amber-border);
+    }
+
+    .email-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .action-icon-btn {
+      width: 32px;
+      height: 32px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.15s ease;
+    }
+
+    .action-icon-btn:hover {
+      background: var(--surface-elevated);
+      color: var(--text);
+      border-color: var(--border-focus);
+    }
+
+    .action-icon-btn.btn-delete:hover {
+      color: var(--rose);
+      border-color: var(--rose-border);
+      background: var(--rose-bg);
+    }
+
+    .history-toggle-btn {
+      font-size: 12px;
+      color: var(--text-muted);
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 6px 10px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+
+    .history-toggle-btn:hover {
+      background: var(--surface-elevated);
+      color: var(--text);
+    }
+
+    .history-toggle-btn .arrow {
+      transition: transform 0.2s ease;
+      font-size: 10px;
+    }
+
+    .history-toggle-btn.is-active .arrow {
+      transform: rotate(180deg);
+    }
+
+    /* History Timeline */
+    .history-drawer {
+      border-top: 1px solid var(--border);
+      background: #0c0e15;
+      padding: 14px 20px;
+      display: none;
+    }
+
+    .history-drawer.is-open {
+      display: block;
+      animation: fadeIn 0.15s ease;
+    }
+
+    .history-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 10px;
+    }
+
+    .timeline-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .timeline-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      font-size: 12px;
+    }
+
+    .timeline-item.self-open {
+      border-left: 3px solid var(--amber);
+      opacity: 0.85;
+    }
+
+    .timeline-item.recipient-open {
+      border-left: 3px solid var(--green);
+    }
+
+    .timeline-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .client-tag {
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .timeline-meta {
+      color: var(--text-muted);
+      font-size: 11px;
+    }
+
+    .timeline-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .ip-tag {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: #93c5fd;
+      background: rgba(59, 130, 246, 0.08);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      padding: 64px 20px;
+      background: var(--surface);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius-lg);
+      margin: 20px 0;
+    }
+
+    .empty-icon {
+      font-size: 44px;
+      margin-bottom: 12px;
+      opacity: 0.8;
+    }
+
+    .empty-title {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .empty-desc {
+      font-size: 13px;
+      color: var(--text-muted);
+      max-width: 440px;
+      margin: 0 auto 18px;
+      line-height: 1.5;
+    }
+
+    /* Toast Notification */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--surface-elevated);
+      color: var(--text);
+      border: 1px solid var(--border-focus);
+      padding: 10px 16px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 500;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+      display: none;
+      align-items: center;
+      gap: 8px;
+      z-index: 9999;
+      animation: slideUp 0.2s ease;
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(12px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    /* Instructions Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 20px;
+    }
+
+    .modal-overlay.is-open {
+      display: flex;
+    }
+
+    .modal-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      max-width: 520px;
+      width: 100%;
+      padding: 24px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+      animation: scaleIn 0.15s ease;
+    }
+
+    @keyframes scaleIn {
+      from { transform: scale(0.96); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .modal-title {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .modal-close {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 18px;
+    }
+
+    .modal-body {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    .modal-body p {
+      margin-bottom: 12px;
+    }
+
+    .modal-body ol {
+      padding-left: 20px;
+      margin-bottom: 14px;
+    }
+
+    .modal-body li {
+      margin-bottom: 6px;
+    }
+
+    /* Responsive */
+    @media (max-width: 640px) {
+      .header-actions {
+        width: 100%;
+        justify-content: space-between;
+      }
+      .toolbar {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .search-box {
+        max-width: none;
+      }
+      .filter-tabs {
+        overflow-x: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Top Header -->
+    <header>
+      <div class="brand">
+        <div class="brand-icon">📬</div>
+        <div class="brand-text">
+          <h1>
+            Email Tracker
+            <span class="live-dot">Live</span>
+          </h1>
+          <p>Personal & Private Gmail Open Tracking</p>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <button type="button" class="btn" id="btnToggleDrawer" title="Manage self-open filter IPs">
+          🛡️ Filter IPs
+          {% if is_client_ignored %}
+            <span style="color: var(--green); font-size: 10px;">● Shielded</span>
+          {% endif %}
+        </button>
+        <button type="button" class="btn" id="btnOpenSetupGuide" title="How to track real emails across the internet">
+          💡 Setup Guide
+        </button>
+        <button type="button" class="btn" id="btnRefresh" title="Click to refresh immediately">
+          🔄 <span id="refreshLabel">Refresh</span>
+        </button>
+        {% if emails %}
+        <button type="button" class="btn btn-danger btn-sm" id="btnClearAll" title="Clear all tracking records">
+          🗑️ Clear All
+        </button>
+        {% endif %}
+      </div>
+    </header>
+
+    <!-- Localhost Notice (Only if detected on localhost / loopback) -->
+    {% if is_localhost %}
+    <div class="alert-banner">
+      <div class="alert-icon">⚠️</div>
+      <div class="alert-content">
+        <strong>Why didn't recipient open register? (Localhost Notice)</strong>
+        Your backend is running on <code>{{ host_url }}</code>. When you send an email to another person, their computer and Google's Image Proxy cannot connect to <code>localhost</code> on your machine!
+        To track real emails across the internet, give your server a public HTTPS address:
+        <div class="alert-code-row">
+          <span class="code-chip" onclick="copyText('ngrok http 5000')">📋 ngrok http 5000</span>
+          <span class="code-chip" onclick="copyText('npx localtunnel --port 5000')">📋 npx localtunnel --port 5000</span>
+          <span style="color: var(--text-dim); font-size: 11px;">or deploy free to Render / Railway / Fly.io</span>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Filter Drawer Panel -->
+    <div id="filterDrawer" class="drawer-panel">
+      <div class="drawer-header">
+        <div class="drawer-title">🛡️ Self-Open Filtering</div>
+        <button type="button" class="action-icon-btn" onclick="toggleDrawer(false)" title="Close">✕</button>
+      </div>
+
+      <div class="ip-current-box">
+        <div class="ip-meta">
+          <span>Your Current IP: <span class="ip-code">{{ client_ip }}</span></span>
+          {% if is_client_ignored %}
+            <span class="badge badge-self">Filter Active (Opens Ignored)</span>
+          {% else %}
+            <span class="badge badge-waiting">Not Filtered (Your opens will be counted)</span>
+          {% endif %}
+        </div>
+        <div>
+          {% if is_client_ignored %}
+            <button type="button" class="btn btn-danger btn-sm" onclick="toggleIp('{{ client_ip }}', 'remove')">Unfilter My IP</button>
+          {% else %}
+            <button type="button" class="btn btn-primary btn-sm" onclick="toggleIp('{{ client_ip }}', 'add')">Filter My Current IP</button>
+          {% endif %}
+        </div>
+      </div>
+
+      <form class="custom-ip-form" onsubmit="addCustomIp(event)">
+        <input type="text" id="customIpInput" class="input-text" placeholder="Add custom IP to filter (e.g. office IP)..." style="flex: 1;" />
+        <button type="submit" class="btn btn-sm">Add IP</button>
+      </form>
+
+      {% if ignored_ips or env_ips %}
+      <table class="ignored-table">
+        <thead>
+          <tr>
+            <th>Filtered IP</th>
+            <th>Label / Source</th>
+            <th>Date Added</th>
+            <th style="text-align: right;">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in ignored_ips %}
+          <tr>
+            <td><span class="ip-code">{{ item.ip }}</span></td>
+            <td>{{ item.label or 'Self IP' }}</td>
+            <td style="color: var(--text-dim);">{{ item.created_at[:10] }}</td>
+            <td style="text-align: right;">
+              <button type="button" class="btn btn-danger btn-sm" onclick="toggleIp('{{ item.ip }}', 'remove')">Remove</button>
+            </td>
+          </tr>
+          {% endfor %}
+          {% for env_ip in env_ips %}
+          <tr>
+            <td><span class="ip-code">{{ env_ip }}</span></td>
+            <td><span style="color: #a5b4fc;">IGNORED_IPS (env)</span></td>
+            <td style="color: var(--text-dim);">Static Config</td>
+            <td style="text-align: right; color: var(--text-dim); font-size: 11px;">Locked</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+    </div>
+
+    <!-- Quick Stats Grid -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-header">
+          <span>TOTAL TRACKED</span>
+          <span>📧</span>
+        </div>
+        <div class="stat-value">{{ stats.total_emails }}</div>
+        <div class="stat-sub">{{ stats.unopened_emails }} waiting for open</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-header">
+          <span>OPEN RATE</span>
+          <span>📈</span>
+        </div>
+        <div class="stat-value">
+          {{ stats.open_rate }}%
+          <span style="font-size: 12px; font-weight: 500; color: var(--green);">({{ stats.opened_emails }}/{{ stats.total_emails }})</span>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" style="width: {{ stats.open_rate }}%;"></div>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-header">
+          <span>TOTAL OPENS</span>
+          <span>👁️</span>
+        </div>
+        <div class="stat-value" style="color: var(--green);">{{ stats.total_opens }}</div>
+        <div class="stat-sub">Genuine recipient reads</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-header">
+          <span>SELF-OPENS FILTERED</span>
+          <span>🛡️</span>
+        </div>
+        <div class="stat-value" style="color: var(--amber);">{{ stats.total_self_opens }}</div>
+        <div class="stat-sub">Sender opens excluded</div>
+      </div>
+    </div>
+
+    <!-- Toolbar: Search & Filter Tabs -->
+    <div class="toolbar">
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="searchInput" class="search-input" placeholder="Search by subject, recipient, or ID..." oninput="handleSearch(this.value)" />
+      </div>
+
+      <div class="filter-tabs">
+        <button type="button" class="filter-tab is-active" data-filter="all" onclick="setFilter('all', this)">
+          All <span class="filter-count">{{ stats.total_emails }}</span>
+        </button>
+        <button type="button" class="filter-tab" data-filter="opened" onclick="setFilter('opened', this)">
+          Opened <span class="filter-count">{{ stats.opened_emails }}</span>
+        </button>
+        <button type="button" class="filter-tab" data-filter="waiting" onclick="setFilter('waiting', this)">
+          Waiting <span class="filter-count">{{ stats.unopened_emails }}</span>
+        </button>
+        <button type="button" class="filter-tab" data-filter="self" onclick="setFilter('self', this)">
+          Self-Opens <span class="filter-count">{{ stats.total_self_opens }}</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Email List -->
+    {% if not emails %}
+    <div class="empty-state">
+      <div class="empty-icon">📬</div>
+      <div class="empty-title">No tracked emails yet</div>
+      <div class="empty-desc">
+        Send an email from Gmail with the <strong>Gmail Open Tracker</strong> extension enabled, and opens will appear here in real time.
+      </div>
+      <button type="button" class="btn btn-primary" onclick="openSetupModal()">View Setup Guide</button>
+    </div>
+    {% else %}
+    <div class="email-list" id="emailListContainer">
+      {% for e in emails %}
+      <div class="email-card"
+           id="card-{{ e.id }}"
+           data-id="{{ e.id }}"
+           data-label="{{ e.label|lower }}"
+           data-status="{% if e.open_count > 0 %}opened{% elif e.self_open_count > 0 %}self{% else %}waiting{% endif %}"
+           data-opens="{{ e.open_count }}">
+        <div class="email-main">
+          <div class="email-info">
+            <div class="email-title-row">
+              <span class="email-subject">
+                {% if '->' in e.label %}
+                  {{ e.label.split('->')[0].strip() }}
+                {% else %}
+                  {{ e.label }}
+                {% endif %}
+              </span>
+              {% if '->' in e.label %}
+                <span class="email-recipient" title="Recipient">{{ e.label.split('->')[1].strip() }}</span>
+              {% endif %}
+            </div>
+
+            <div class="email-meta">
+              <span title="{{ e.created_at }} UTC">Created <span class="relative-time" data-time="{{ e.created_at }}"></span></span>
+              <span>·</span>
+              <span class="email-id-chip" onclick="copyText('{{ e.id }}')" title="Click to copy Tracking ID">
+                <code>{{ e.id[:8] }}...</code> 📋
+              </span>
+              {% if e.last_opened_at %}
+                <span>·</span>
+                <span style="color: var(--green);">
+                  Last open: <span class="relative-time" data-time="{{ e.last_opened_at }}"></span>
+                  {% if e.last_client %} ({{ e.last_client }}){% endif %}
+                </span>
+              {% endif %}
+            </div>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+            <div>
+              {% if e.open_count > 0 %}
+                <span class="badge badge-opened">✅ Opened {{ e.open_count }}x</span>
+              {% elif e.self_open_count > 0 %}
+                <span class="badge badge-self" title="Recipient has not opened yet; only self-opens were logged">🛡️ Self-Open Only ({{ e.self_open_count }})</span>
+              {% else %}
+                <span class="badge badge-waiting">⏳ Waiting for open</span>
+              {% endif %}
+            </div>
+
+            <div class="email-actions">
+              <button type="button" class="action-icon-btn" onclick="copyPixelUrl('{{ e.id }}')" title="Copy tracking pixel URL">📋</button>
+              <button type="button" class="action-icon-btn" onclick="testPingPixel('{{ e.id }}')" title="Test trigger (simulate open)">🧪</button>
+              <button type="button" class="action-icon-btn btn-delete" onclick="deleteEmail('{{ e.id }}')" title="Delete this tracked email">🗑️</button>
+              
+              {% if e.opens %}
+              <button type="button" class="history-toggle-btn" onclick="toggleHistory('{{ e.id }}', this)">
+                History ({{ e.opens|length }}) <span class="arrow">▼</span>
+              </button>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        {% if e.opens %}
+        <div id="history-{{ e.id }}" class="history-drawer">
+          <div class="history-title">Activity Timeline</div>
+          <div class="timeline-list">
+            {% for o in e.opens %}
+            <div class="timeline-item {% if o.is_self %}self-open{% else %}recipient-open{% endif %}">
+              <div class="timeline-left">
+                {% if o.is_self %}
+                  <span class="badge badge-self" style="padding: 2px 7px; font-size: 10px;">Self-Open</span>
+                {% else %}
+                  <span class="badge badge-opened" style="padding: 2px 7px; font-size: 10px;">Recipient Open</span>
+                {% endif %}
+                <span class="client-tag">{{ o.client_name }}</span>
+                <span class="timeline-meta" title="{{ o.opened_at }} UTC">
+                  <span class="relative-time" data-time="{{ o.opened_at }}"></span>
+                  ({{ o.opened_at[:19].replace('T', ' ') }} UTC)
+                </span>
+              </div>
+              <div class="timeline-right">
+                <span class="ip-tag" title="Client IP">{{ o.ip }}</span>
+                {% if not o.is_self %}
+                <button type="button" class="btn btn-sm" style="padding: 2px 6px; font-size: 10px;" onclick="toggleIp('{{ o.ip }}', 'add')" title="Add this IP to self-open filter">Shield IP</button>
+                {% endif %}
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Toast Element -->
+  <div id="toast" class="toast">
+    <span id="toastIcon">✓</span>
+    <span id="toastMsg">Action completed</span>
+  </div>
+
+  <!-- Setup Guide Modal -->
+  <div id="setupModal" class="modal-overlay" onclick="if(event.target === this) closeSetupModal()">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title">💡 How Email Tracking Works</div>
+        <button type="button" class="modal-close" onclick="closeSetupModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <p><strong>1. Why didn't a recipient open show up?</strong></p>
+        <p>When you send an email with an invisible 1x1 tracking pixel, the recipient's email client loads the image from your server.</p>
+        <p>If your server URL is <code>http://localhost:5000</code>, other people and Google Image Proxy <strong>cannot connect to your computer's localhost</strong>. To track emails over the internet, your server must have a public HTTPS URL.</p>
+
+        <p style="margin-top: 14px;"><strong>2. Fast Solution: Use a Tunnel</strong></p>
+        <p>Open a terminal on your computer and run either:</p>
+        <div class="alert-code-row" style="margin-bottom: 12px;">
+          <span class="code-chip" onclick="copyText('ngrok http 5000')">📋 ngrok http 5000</span>
+          <span class="code-chip" onclick="copyText('npx localtunnel --port 5000')">📋 npx localtunnel --port 5000</span>
+        </div>
+        <p>Copy the HTTPS URL generated (e.g. <code>https://abc.ngrok-free.app</code>), paste it into the <strong>Extension Popup</strong> under Server URL, and click <strong>Save</strong>!</p>
+
+        <p style="margin-top: 14px;"><strong>3. Permanent Solution: Free Cloud Hosting</strong></p>
+        <p>Deploy this repository to <strong>Render.com</strong>, <strong>Railway</strong>, or <strong>Fly.io</strong>. You will get a permanent HTTPS link that stays online 24/7 without needing your laptop open.</p>
+      </div>
+      <div style="text-align: right; margin-top: 18px;">
+        <button type="button" class="btn btn-primary" onclick="closeSetupModal()">Got it!</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Relative Time Formatter
+    function formatRelativeTime(dateString) {
+      if (!dateString) return "";
+      const date = new Date(dateString.endsWith("Z") ? dateString : dateString + "Z");
+      const now = new Date();
+      const diffMs = now - date;
+      const diffSec = Math.floor(diffMs / 1000);
+      const diffMin = Math.floor(diffSec / 60);
+      const diffHour = Math.floor(diffMin / 60);
+      const diffDay = Math.floor(diffHour / 24);
+
+      if (diffSec < 45) return "just now";
+      if (diffMin < 60) return `${diffMin}m ago`;
+      if (diffHour < 24) return `${diffHour}h ago`;
+      if (diffDay < 7) return `${diffDay}d ago`;
+      return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    }
+
+    function updateAllRelativeTimes() {
+      document.querySelectorAll(".relative-time").forEach(el => {
+        const raw = el.getAttribute("data-time");
+        if (raw) el.textContent = formatRelativeTime(raw);
+      });
+    }
+
+    updateAllRelativeTimes();
+    setInterval(updateAllRelativeTimes, 30000);
+
+    // Toast Notifications
+    let toastTimeout = null;
+    function showToast(msg, icon = "✓") {
+      const toast = document.getElementById("toast");
+      document.getElementById("toastMsg").textContent = msg;
+      document.getElementById("toastIcon").textContent = icon;
+      toast.style.display = "flex";
+      clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        toast.style.display = "none";
+      }, 3000);
+    }
+
+    function copyText(text) {
+      navigator.clipboard.writeText(text).then(() => {
+        showToast("Copied to clipboard: " + text);
+      }).catch(() => {
+        prompt("Copy text:", text);
+      });
+    }
+
+    function copyPixelUrl(trackingId) {
+      const url = `${window.location.origin}/track/${trackingId}.png`;
+      copyText(url);
+    }
+
+    // Test Open / Ping
+    async function testPingPixel(trackingId) {
+      const url = `/track/${trackingId}.png?t=${Date.now()}`;
+      try {
+        await fetch(url, { cache: "no-store" });
+        showToast("Test ping sent! Refreshing...", "🧪");
+        setTimeout(() => location.reload(), 800);
+      } catch (err) {
+        showToast("Failed to ping pixel: " + err.message, "✕");
+      }
+    }
+
+    // Toggle History Drawer
+    function toggleHistory(id, btn) {
+      const drawer = document.getElementById(`history-${id}`);
+      if (!drawer) return;
+      const isOpen = drawer.classList.contains("is-open");
+      if (isOpen) {
+        drawer.classList.remove("is-open");
+        btn.classList.remove("is-active");
+      } else {
+        drawer.classList.add("is-open");
+        btn.classList.add("is-active");
+      }
+    }
+
+    // Drawer Filter IPs
+    const drawer = document.getElementById("filterDrawer");
+    document.getElementById("btnToggleDrawer").addEventListener("click", () => {
+      drawer.classList.toggle("is-open");
+    });
+    function toggleDrawer(open) {
+      if (open) drawer.classList.add("is-open");
+      else drawer.classList.remove("is-open");
+    }
+
+    // IP Actions
+    async function toggleIp(ip, action) {
+      try {
+        const res = await fetch('/api/ignored-ips', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ip: ip, action: action, label: 'Dashboard User' })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast(action === 'add' ? `IP ${ip} filtered!` : `IP ${ip} unshielded!`);
+          setTimeout(() => location.reload(), 600);
+        } else {
+          showToast(data.error || 'Failed to update filter', '✕');
+        }
+      } catch (err) {
+        showToast('Network error: ' + err.message, '✕');
+      }
+    }
+
+    function addCustomIp(e) {
+      e.preventDefault();
+      const input = document.getElementById("customIpInput");
+      const ip = input.value.trim();
+      if (!ip) return;
+      toggleIp(ip, "add");
+    }
+
+    // Delete Single Email
+    async function deleteEmail(trackingId) {
+      if (!confirm("Are you sure you want to delete this tracked email and its history?")) return;
+      try {
+        const res = await fetch('/api/delete-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tracking_id: trackingId })
+        });
+        const data = await res.json();
+        if (data.success) {
+          const card = document.getElementById(`card-${trackingId}`);
+          if (card) {
+            card.style.transition = 'all 0.3s ease';
+            card.style.opacity = '0';
+            card.style.transform = 'translateY(-10px)';
+            setTimeout(() => card.remove(), 300);
+          }
+          showToast("Email deleted");
+          setTimeout(() => location.reload(), 700);
+        } else {
+          showToast(data.error || "Failed to delete", "✕");
+        }
+      } catch (err) {
+        showToast("Error: " + err.message, "✕");
+      }
+    }
+
+    // Clear All
+    const btnClearAll = document.getElementById("btnClearAll");
+    if (btnClearAll) {
+      btnClearAll.addEventListener("click", async () => {
+        if (!confirm("Delete ALL tracked emails and open events? This cannot be undone.")) return;
+        try {
+          const res = await fetch('/api/clear-all', { method: 'POST' });
+          const data = await res.json();
+          if (data.success) {
+            showToast("All data cleared");
+            setTimeout(() => location.reload(), 600);
+          }
+        } catch (err) {
+          showToast("Error: " + err.message, "✕");
+        }
+      });
+    }
+
+    // Search and Filter logic
+    let currentFilter = 'all';
+    let currentSearch = '';
+
+    function setFilter(filter, el) {
+      currentFilter = filter;
+      document.querySelectorAll(".filter-tab").forEach(tab => tab.classList.remove("is-active"));
+      el.classList.add("is-active");
+      applyFilters();
+    }
+
+    function handleSearch(val) {
+      currentSearch = (val || "").toLowerCase().trim();
+      applyFilters();
+    }
+
+    function applyFilters() {
+      const cards = document.querySelectorAll(".email-card");
+      cards.forEach(card => {
+        const status = card.getAttribute("data-status");
+        const label = card.getAttribute("data-label") || "";
+        const id = card.getAttribute("data-id") || "";
+
+        let matchesFilter = true;
+        if (currentFilter === 'opened') matchesFilter = (status === 'opened');
+        else if (currentFilter === 'waiting') matchesFilter = (status === 'waiting');
+        else if (currentFilter === 'self') matchesFilter = (status === 'self');
+
+        let matchesSearch = true;
+        if (currentSearch) {
+          matchesSearch = label.includes(currentSearch) || id.includes(currentSearch);
+        }
+
+        if (matchesFilter && matchesSearch) {
+          card.style.display = "block";
+        } else {
+          card.style.display = "none";
+        }
+      });
+    }
+
+    // Refresh & Auto-Refresh
+    let autoRefreshSec = 20;
+    let refreshCountdown = autoRefreshSec;
+    const elRefreshLabel = document.getElementById("refreshLabel");
+    const btnRefresh = document.getElementById("btnRefresh");
+
+    btnRefresh.addEventListener("click", () => {
+      location.reload();
+    });
+
+    setInterval(() => {
+      refreshCountdown--;
+      if (refreshCountdown <= 0) {
+        location.reload();
+      } else {
+        elRefreshLabel.textContent = `Refresh (${refreshCountdown}s)`;
+      }
+    }, 1000);
+
+    // Setup Guide Modal
+    const modal = document.getElementById("setupModal");
+    document.getElementById("btnOpenSetupGuide").addEventListener("click", openSetupModal);
+
+    function openSetupModal() {
+      modal.classList.add("is-open");
+    }
+
+    function closeSetupModal() {
+      modal.classList.remove("is-open");
+    }
+  </script>
+</body>
+</html>

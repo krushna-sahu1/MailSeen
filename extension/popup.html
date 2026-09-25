@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Gmail Open Tracker</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <header class="header">
+      <div class="title-row">
+        <img src="icons/icon32.png" alt="Logo" class="logo">
+        <div class="title-text">
+          <h1>Email Tracker</h1>
+          <span class="sub">Personal Gmail Open Tracker</span>
+        </div>
+      </div>
+      <div id="connectionStatus" class="status-pill status-checking">
+        <span class="dot"></span> <span class="status-text">Checking...</span>
+      </div>
+    </header>
+
+    <div class="section">
+      <label for="backendUrl" class="field-label">Backend Server URL</label>
+      <div class="input-row">
+        <input type="text" id="backendUrl" placeholder="http://localhost:5000" autocomplete="off" spellcheck="false" />
+        <button type="button" id="btnTest" class="btn btn-secondary">Test</button>
+      </div>
+      <div id="testMessage" class="helper-text"></div>
+      <div id="localhostNotice" style="display:none; margin-top:8px; padding:8px 10px; background:rgba(245,166,35,0.12); border:1px solid rgba(245,166,35,0.3); border-radius:6px; font-size:11px; color:#f5a623; line-height:1.4;">
+        ⚠️ <strong>Localhost Warning:</strong> Emails tracked with <code>localhost</code> will <strong>only</strong> register opens on this computer! External recipients & Google cannot reach your local machine. Use a public HTTPS URL (e.g. <code>ngrok http 5000</code> or Render).
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-title">Track emails by default</div>
+          <div class="toggle-desc">Automatically insert tracking pixel when sending</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="toggleTracking">
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-row" style="margin-top: 14px;">
+        <div>
+          <div class="toggle-title">Visible disclosure line</div>
+          <div class="toggle-desc">Show subtle footer transparency notice</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="toggleDisclosure">
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div id="disclosureTextContainer" class="sub-field" style="margin-top: 10px;">
+        <label for="disclosureText" class="field-label">Disclosure text</label>
+        <input type="text" id="disclosureText" placeholder="⚡ " />
+      </div>
+    </div>
+
+    <!-- Self-open filtering section -->
+    <div class="section self-open-section">
+      <div class="section-title">🛡️ Self-Open Filtering</div>
+      <div class="ip-status-row">
+        <div>
+          <div class="ip-label">Detected IP: <code id="currentIp">--</code></div>
+          <div id="ipFilterStatus" class="ip-filter-badge">Checking filter...</div>
+        </div>
+        <button type="button" id="btnToggleIp" class="btn btn-sm btn-outline">Filter My IP</button>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button type="button" id="btnSave" class="btn btn-primary">Save Settings</button>
+      <button type="button" id="btnOpenDashboard" class="btn btn-outline">Open Dashboard ↗</button>
+    </div>
+
+    <div id="saveFeedback" class="save-feedback"></div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
