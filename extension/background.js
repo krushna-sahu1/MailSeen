@@ -5,7 +5,7 @@
  */
 
 const DEFAULT_SETTINGS = {
-  backendUrl: "http://localhost:5000",
+  backendUrl: "https://mailseen.onrender.com",
   trackingEnabled: true,
   includeDisclosure: true,
   disclosureText: "⚡ "

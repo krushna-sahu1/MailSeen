@@ -13,7 +13,7 @@ document.addEventListener("DOMContentLoaded", () => {
   chrome.runtime.sendMessage({ type: "GET_SETTINGS" }, (res) => {
     if (res && res.success && res.settings) {
       const s = res.settings;
-      elBackendUrl.value = s.backendUrl || "http://localhost:5000";
+      elBackendUrl.value = s.backendUrl || "https://mailseen.onrender.com";
       elToggleTracking.checked = s.trackingEnabled !== false;
       elToggleDisclosure.checked = s.includeDisclosure !== false;
       elDisclosureText.value = s.disclosureText || "⚡ ";

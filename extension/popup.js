@@ -25,7 +25,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   chrome.runtime.sendMessage({ type: "GET_SETTINGS" }, (res) => {
     if (res && res.success && res.settings) {
       const s = res.settings;
-      elBackendUrl.value = s.backendUrl || "http://localhost:5000";
+      elBackendUrl.value = s.backendUrl || "https://mailseen.onrender.com";
       elToggleTracking.checked = s.trackingEnabled !== false;
       elToggleDisclosure.checked = s.includeDisclosure !== false;
       elDisclosureText.value = s.disclosureText || "⚡ ";
@@ -140,7 +140,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   elBtnOpenDashboard.addEventListener("click", () => {
-    const url = (elBackendUrl.value.trim() || "http://localhost:5000").replace(/\/+$/, "") + "/dashboard";
+    const url = (elBackendUrl.value.trim() || "https://mailseen.onrender.com").replace(/\/+$/, "") + "/dashboard";
     chrome.tabs.create({ url: url });
   });
 });
