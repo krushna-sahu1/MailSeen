@@ -25,13 +25,19 @@
   // Re-check settings periodically
   setInterval(refreshSettings, 30000);
 
-  // Helper to find the compose container
+  // Helper to find the compose or inline reply container
   function findComposeContainer(el) {
     if (!el) return null;
     return (
       el.closest('div[role="dialog"]') ||
       el.closest('.M9') ||
       el.closest('.AD') ||
+      el.closest('.ip.adp') ||
+      el.closest('.adn.ads') ||
+      el.closest('.gA.gt') ||
+      el.closest('table.cf.An') ||
+      el.closest('.aoP') ||
+      el.closest('.I5') ||
       el.closest('.inboxsdk__compose') ||
       el.closest('table.iN') ||
       el.closest('div[aria-label*="Compose"]') ||
@@ -340,12 +346,16 @@
 
   // Inject Mailtrack-style tracking toggle button into compose toolbar
   function setupComposeToolbar(composeBox) {
-    if (composeBox.querySelector(".tracker-compose-toggle")) return;
+    if (!composeBox || composeBox.querySelector(".tracker-compose-toggle")) return;
 
-    // Look for Gmail's compose bottom action bar
-    const toolbar =
-      composeBox.querySelector("tr.btC, div.btC, td.gU.Up, .dC, [role=\"toolbar\"]");
-    if (!toolbar) return;
+    // Find the Send button in this compose/reply box
+    const sendButton = findSendButtonInCompose(composeBox);
+    if (!sendButton) return;
+
+    // Find the Send button's wrapper (including the schedule send arrow)
+    const sendGroup =
+      sendButton.closest('.Up, .dC, tr.btC, div.btC')?.querySelector('.T-I-atl, .aoO')?.parentElement ||
+      sendButton.parentElement;
 
     const toggleBtn = document.createElement("button");
     toggleBtn.type = "button";
@@ -364,11 +374,20 @@
       updateToggleAppearance(toggleBtn, next);
     });
 
-    // Insert near the toolbar
-    if (toolbar.firstChild) {
-      toolbar.insertBefore(toggleBtn, toolbar.firstChild);
+    // Place toggle button right next to the Send button group!
+    if (sendGroup && sendGroup.parentNode) {
+      if (sendGroup.nextSibling) {
+        sendGroup.parentNode.insertBefore(toggleBtn, sendGroup.nextSibling);
+      } else {
+        sendGroup.parentNode.appendChild(toggleBtn);
+      }
     } else {
-      toolbar.appendChild(toggleBtn);
+      // Fallback: look for action bar
+      const toolbar = composeBox.querySelector("tr.btC, div.btC, td.gU.Up, .dC, [role=\"toolbar\"]");
+      if (toolbar) {
+        if (toolbar.firstChild) toolbar.insertBefore(toggleBtn, toolbar.firstChild);
+        else toolbar.appendChild(toggleBtn);
+      }
     }
   }
 
@@ -384,17 +403,48 @@
     }
   }
 
-  // Scan for existing compose boxes and observe new ones
+  // Scan for all existing compose and inline reply boxes
   function scanComposeWindows() {
-    const composeBoxes = document.querySelectorAll(
-      'div[role="dialog"], .M9, .AD, div[aria-label*="Compose"]'
+    // 1. Scan via all message bodies (covers inline replies, popup compose, full-screen)
+    const messageBodies = document.querySelectorAll(
+      'div[role="textbox"][contenteditable="true"], div.Am.Al.editable, div[aria-label*="Message Body"]'
     );
-    composeBoxes.forEach((box) => {
-      if (findMessageBody(box)) {
+    messageBodies.forEach((body) => {
+      const box = findComposeContainer(body);
+      if (box) {
         setupComposeToolbar(box);
       }
     });
+
+    // 2. Scan via send buttons (in case message body wasn't rendered yet)
+    const sendButtons = document.querySelectorAll(
+      'div.aoO, div.T-I-atl, div[role="button"][data-tooltip*="Send"]'
+    );
+    sendButtons.forEach((btn) => {
+      if (isSendButton(btn)) {
+        const box = findComposeContainer(btn);
+        if (box) {
+          setupComposeToolbar(box);
+        }
+      }
+    });
   }
+
+  // Listen for clicks or focus into any reply/compose box to immediately inject toggle
+  document.addEventListener(
+    "focusin",
+    (e) => {
+      if (
+        e.target &&
+        e.target.matches &&
+        e.target.matches('div[role="textbox"], div.editable, [contenteditable="true"]')
+      ) {
+        const box = findComposeContainer(e.target);
+        if (box) setupComposeToolbar(box);
+      }
+    },
+    true
+  );
 
   const observer = new MutationObserver(() => {
     scanComposeWindows();
