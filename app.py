@@ -82,6 +82,12 @@ def init_db():
     if "is_self" not in columns:
         conn.execute("ALTER TABLE opens ADD COLUMN is_self INTEGER DEFAULT 0")
 
+    # Check if sender_ip column exists in emails
+    cursor = conn.execute("PRAGMA table_info(emails)")
+    email_columns = [row[1] for row in cursor.fetchall()]
+    if "sender_ip" not in email_columns:
+        conn.execute("ALTER TABLE emails ADD COLUMN sender_ip TEXT")
+
     conn.execute(
         """
         CREATE TABLE IF NOT EXISTS ignored_ips (
@@ -195,11 +201,22 @@ def new_tracker():
         label = request.values.get("label", "Untitled email")
 
     tracking_id = uuid.uuid4().hex
+    sender_ip = get_client_ip()
 
     conn = get_db()
+    # Auto-filter the sender's current IP so their own browser never registers as a recipient
+    if sender_ip and sender_ip not in ("127.0.0.1", "::1", "localhost"):
+        try:
+            conn.execute(
+                "INSERT OR IGNORE INTO ignored_ips (ip, label, created_at) VALUES (?, ?, ?)",
+                (sender_ip, "Sender IP (Auto)", datetime.utcnow().isoformat())
+            )
+        except Exception:
+            pass
+
     conn.execute(
-        "INSERT INTO emails (id, label, created_at) VALUES (?, ?, ?)",
-        (tracking_id, label, datetime.utcnow().isoformat()),
+        "INSERT INTO emails (id, label, created_at, sender_ip) VALUES (?, ?, ?, ?)",
+        (tracking_id, label, datetime.utcnow().isoformat(), sender_ip),
     )
     conn.commit()
     conn.close()
@@ -235,12 +252,12 @@ def track(tracking_id):
     """Serve the pixel and log the open event, identifying self-opens."""
     client_ip = get_client_ip()
     user_agent = request.headers.get("User-Agent", "")
-    self_open = is_self_ip(client_ip)
 
     conn = get_db()
-    # Only log if this tracking_id actually exists
-    exists = conn.execute("SELECT id FROM emails WHERE id = ?", (tracking_id,)).fetchone()
-    if exists:
+    email = conn.execute("SELECT id, sender_ip FROM emails WHERE id = ?", (tracking_id,)).fetchone()
+    if email:
+        sender_ip = (email["sender_ip"] or "").strip()
+        self_open = is_self_ip(client_ip) or (sender_ip and client_ip == sender_ip)
         conn.execute(
             "INSERT INTO opens (tracking_id, opened_at, ip, user_agent, is_self) VALUES (?, ?, ?, ?, ?)",
             (
@@ -268,6 +285,7 @@ def track(tracking_id):
 def dashboard():
     conn = get_db()
     emails = conn.execute("SELECT * FROM emails ORDER BY created_at DESC").fetchall()
+    ignored_ips_set = get_ignored_ips_list()
 
     results = []
     total_genuine_opens = 0
@@ -279,8 +297,16 @@ def dashboard():
             (e["id"],),
         ).fetchall()
         parsed_opens = []
+        sender_ip = (e["sender_ip"] or "").strip() if "sender_ip" in e.keys() else ""
+
         for o in opens:
             o_dict = dict(o)
+            open_ip = (o_dict.get("ip") or "").strip()
+            # If IP is in ignored IPs or matches sender IP, mark as self open
+            if not o_dict["is_self"]:
+                if open_ip in ignored_ips_set or (sender_ip and open_ip == sender_ip):
+                    o_dict["is_self"] = 1
+
             o_dict["client_name"] = parse_client_device(o_dict.get("user_agent", ""))
             parsed_opens.append(o_dict)
 
@@ -297,9 +323,10 @@ def dashboard():
                 "created_at": e["created_at"],
                 "open_count": len(genuine_opens),
                 "self_open_count": len(self_opens),
-                "last_opened_at": genuine_opens[0]["opened_at"] if genuine_opens else (self_opens[0]["opened_at"] if self_opens else None),
-                "last_client": genuine_opens[0]["client_name"] if genuine_opens else (self_opens[0]["client_name"] if self_opens else None),
-                "opens": parsed_opens,
+                "last_opened_at": genuine_opens[0]["opened_at"] if genuine_opens else None,
+                "last_client": genuine_opens[0]["client_name"] if genuine_opens else None,
+                "opens": genuine_opens,  # Only genuine recipient opens shown in main timeline
+                "all_opens": parsed_opens,
             }
         )
 
