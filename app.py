@@ -10,9 +10,12 @@ Endpoints (* = requires the API token or a dashboard login):
   GET      /dashboard                -> * view all tracked emails and their open history
   GET      /api/status/<tracking_id> -> * JSON status for a tracking ID
   GET      /api/my-ip                -> * returns detected client IP and filter status
+  POST     /api/heartbeat            -> * the extension checks in so the sender's network is recognised
+  GET/POST /api/devices              -> * list / forget networks recognised as the sender's
+  POST     /api/mark-self            -> * mark one open or document view as the sender's own (or not)
   GET/POST /api/ignored-ips          -> * manage self-open filtered IP addresses
   POST     /api/upload-attachment    -> * upload a file for tracked sharing, returns view URL
-  GET      /view/<attachment_id>     -> branded viewer page for tracked attachment (logs view event)
+  GET      /view/<attachment_id>     -> viewer page for a tracked attachment (logs a view via a beacon)
   GET      /file/<attachment_id>     -> raw file download/inline serve (sandboxed)
   GET      /api/attachment-status/<id> -> * JSON view stats for an attachment
   POST     /api/delete-attachment    -> * delete a tracked attachment
@@ -36,6 +39,7 @@ Configuration (environment variables):
   MAILSEEN_SENDER_IP_TTL_HOURS how long the sender's IP counts as "self" for a new email (default 6)
   MAILSEEN_MIN_HUMAN_SECONDS   fetches sooner than this after sending count as scanners (default 5)
   MAILSEEN_RETENTION_DAYS      delete tracking data older than this many days; 0 keeps it (default 90)
+  MAILSEEN_SELF_DEVICE_DAYS    how long a network you used the extension/dashboard from counts as "you" (default 30)
 """
 
 import hmac
@@ -102,6 +106,13 @@ SENDER_IP_TTL = timedelta(hours=float(os.getenv("MAILSEEN_SENDER_IP_TTL_HOURS", 
 # When the extension sees the sender viewing their own message in Gmail, proxy fetches within this
 # window either side of the report are marked as self.
 SELF_VIEW_WINDOW = timedelta(seconds=60)
+# Every network the sender uses the extension or dashboard from is remembered as one of their devices.
+# Direct (non-proxy) opens from it are the sender's own until it hasn't been seen for this long.
+SELF_DEVICE_TTL = timedelta(days=float(os.getenv("MAILSEEN_SELF_DEVICE_DAYS", "30")))
+# Re-record a known device at most this often, so authenticated requests don't all write.
+DEVICE_TOUCH_INTERVAL = timedelta(minutes=5)
+# IPv6 hosts rotate the low 64 bits (privacy addresses), so a device is identified by its /64.
+IPV6_DEVICE_PREFIX = 64
 # Fetches sooner than this after sending come from delivery-time scanners, not people.
 MIN_HUMAN_SECONDS = float(os.getenv("MAILSEEN_MIN_HUMAN_SECONDS", "5"))
 
@@ -366,12 +377,35 @@ def _migrate_v5_subject_recipients(conn):
         conn.execute("UPDATE emails SET subject = ?, recipients = ? WHERE id = ?", (*split_label(row["label"]), row["id"]))
 
 
+def _migrate_v6_sender_devices(conn):
+    """Networks the sender works from. Seeded from sender IPs still held in full (recent emails/uploads)."""
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS sender_devices (
+            network TEXT PRIMARY KEY,
+            ip TEXT,
+            user_agent TEXT,
+            first_seen TEXT,
+            last_seen TEXT
+        )
+        """
+    )
+    rows = conn.execute(
+        "SELECT sender_ip, created_at FROM emails WHERE sender_ip IS NOT NULL "
+        "UNION ALL SELECT sender_ip, created_at FROM attachments WHERE sender_ip IS NOT NULL"
+    ).fetchall()
+    for row in rows:
+        if truncate_ip(row["sender_ip"]) != row["sender_ip"]:  # truncated IPs no longer identify the sender
+            remember_device(conn, row["sender_ip"], None, parse_ts(row["created_at"]))
+
+
 MIGRATIONS = [
     _migrate_v1_baseline,
     _migrate_v2_accuracy,
     _migrate_v3_truncate_ips,
     _migrate_v4_indexes,
     _migrate_v5_subject_recipients,
+    _migrate_v6_sender_devices,
 ]
 
 
@@ -421,9 +455,11 @@ def require_auth(view):
     @wraps(view)
     def wrapper(*args, **kwargs):
         if _bearer_token_valid():
+            touch_current_device()
             return view(*args, **kwargs)
         if _session_valid():
             if request.method in ("GET", "HEAD") or _csrf_valid():
+                touch_current_device()
                 return view(*args, **kwargs)
             return jsonify({"error": "CSRF token missing or invalid"}), 403
         return jsonify({"error": "Authentication required"}), 401
@@ -435,7 +471,8 @@ def login_required(view):
     @wraps(view)
     def wrapper(*args, **kwargs):
         if not _session_valid():
-            return redirect(url_for("login", next=request.path))
+            return redirect(url_for("login", next=request.full_path.rstrip("?")))
+        touch_current_device()
         return view(*args, **kwargs)
     return wrapper
 
@@ -467,6 +504,56 @@ def is_ignored_ip(conn, client_ip):
     return conn.execute(f"SELECT 1 FROM ignored_ips WHERE ip IN ({placeholders})", candidates).fetchone() is not None
 
 
+def device_network(ip):
+    """The key a sender device is remembered by: the IPv4 address, or the IPv6 /64."""
+    try:
+        addr = ipaddress.ip_address((ip or "").strip())
+    except ValueError:
+        return None
+    if addr.version == 4:
+        return str(addr)
+    return str(ipaddress.ip_network(f"{addr}/{IPV6_DEVICE_PREFIX}", strict=False))
+
+
+def remember_device(conn, ip, user_agent=None, now=None):
+    """Record that the sender used this network. Writes at most once per DEVICE_TOUCH_INTERVAL."""
+    network = device_network(ip)
+    if not network or SELF_DEVICE_TTL.total_seconds() <= 0:
+        return False
+    now = now or utcnow()
+    cur = conn.execute(
+        "INSERT INTO sender_devices (network, ip, user_agent, first_seen, last_seen) VALUES (?, ?, ?, ?, ?) "
+        "ON CONFLICT(network) DO UPDATE SET ip = excluded.ip, "
+        "user_agent = COALESCE(excluded.user_agent, user_agent), last_seen = excluded.last_seen "
+        "WHERE last_seen < ? OR last_seen IS NULL",
+        (network, ip.strip(), user_agent, now.isoformat(), now.isoformat(),
+         (now - DEVICE_TOUCH_INTERVAL).isoformat()),
+    )
+    return cur.rowcount > 0
+
+
+def touch_current_device():
+    """Remember the network of an authenticated request (the extension or the dashboard: always the sender)."""
+    try:
+        conn = get_db()
+        if remember_device(conn, get_client_ip(), request.headers.get("User-Agent")):
+            conn.commit()
+    except sqlite3.Error:
+        # Never fail the actual request because the device couldn't be recorded
+        app.logger.warning("Could not record sender device", exc_info=True)
+
+
+def is_known_device(conn, client_ip, now):
+    """True if the sender has used the extension or dashboard from this network within SELF_DEVICE_TTL."""
+    network = device_network(client_ip)
+    if not network or SELF_DEVICE_TTL.total_seconds() <= 0:
+        return False
+    return conn.execute(
+        "SELECT 1 FROM sender_devices WHERE network = ? AND last_seen >= ?",
+        (network, (now - SELF_DEVICE_TTL).isoformat()),
+    ).fetchone() is not None
+
+
 def is_sender_ip(record, client_ip, now):
     """The sender's own IP only counts as "self" for SENDER_IP_TTL after the email/upload was created."""
     sender_ip = (record["sender_ip"] or "").strip()
@@ -488,8 +575,7 @@ def truncate_ip(ip):
         addr = ipaddress.ip_address((ip or "").strip())
     except ValueError:
         return None
-    prefix = IPV4_KEEP_PREFIX if addr.version == 4 else IPV6_KEEP_PREFIX
-    return str(ipaddress.ip_network(f"{addr}/{prefix}", strict=False).network_address)
+    return str(truncate_ip_address(addr))
 
 
 def classify_open(ip, user_agent, seconds_since_send=None, method="GET"):
@@ -552,6 +638,36 @@ def parse_client_device(ua_string):
     if "safari" in ua and "chrome" not in ua:
         return "Apple Safari"
     return "Mail / Web Client"
+
+
+@app.template_filter("network_label")
+def network_label(ip):
+    """Stored (truncated) IP as a readable network: "203.0.113.x" or "2001:db8:1::/48"."""
+    try:
+        addr = ipaddress.ip_address((ip or "").strip())
+    except ValueError:
+        return ""
+    if addr.version == 4:
+        return str(addr)[: -len(".0")] + ".x" if str(addr).endswith(".0") else str(addr)
+    return f"{addr}/{IPV6_KEEP_PREFIX}" if addr == truncate_ip_address(addr) else str(addr)
+
+
+def truncate_ip_address(addr):
+    prefix = IPV4_KEEP_PREFIX if addr.version == 4 else IPV6_KEEP_PREFIX
+    return ipaddress.ip_network(f"{addr}/{prefix}", strict=False).network_address
+
+
+OPEN_KIND_LABELS = {
+    "human": "Mail client",
+    "proxy": "Gmail / Yahoo",
+    "apple_mpp": "Apple Mail privacy prefetch",
+    "scanner": "Security scanner or bot",
+}
+
+
+@app.template_filter("kind_label")
+def kind_label(kind):
+    return OPEN_KIND_LABELS.get(kind or "human", "Unknown")
 
 
 def format_file_size(size_bytes):
@@ -725,6 +841,9 @@ def track(tracking_id):
         self_open = (
             is_ignored_ip(conn, client_ip)
             or is_sender_ip(email, client_ip, now)
+            # Mail-client fetch from a network the sender works from. Proxy fetches come from Google's or
+            # Yahoo's servers, never the sender's network, so they are left to the self-view report.
+            or (kind != "proxy" and is_known_device(conn, client_ip, now))
             # The sender is viewing this message in Gmail right now (reported by the extension)
             or (kind == "proxy" and suppress_until is not None and now <= suppress_until)
         )
@@ -860,7 +979,11 @@ def view_beacon(attachment_id):
         "SELECT id, sender_ip, created_at FROM attachments WHERE id = ?", (attachment_id,)
     ).fetchone()
     if attachment:
-        self_view = is_ignored_ip(conn, client_ip) or is_sender_ip(attachment, client_ip, now)
+        self_view = (
+            is_ignored_ip(conn, client_ip)
+            or is_sender_ip(attachment, client_ip, now)
+            or is_known_device(conn, client_ip, now)
+        )
         conn.execute(
             "INSERT INTO attachment_views (attachment_id, viewed_at, ip, user_agent, is_self, open_kind) "
             "VALUES (?, ?, ?, ?, ?, ?)",
@@ -973,11 +1096,24 @@ def summarize_attachment(attachment, view_rows):
     counted, automated, own = split_events(view_rows)
     summary["file_size_display"] = format_file_size(summary.get("file_size"))
     summary["views"] = counted
+    summary["automated_views"] = automated
+    summary["self_views"] = own
     summary["view_count"] = len(counted)
     summary["automated_view_count"] = len(automated)
     summary["self_view_count"] = len(own)
     summary["last_viewed_at"] = counted[0]["viewed_at"] if counted else None
+    # Dashboard timelines, in the same shape as an email's
+    for key, events in (("activity", counted), ("self_activity", own), ("automated_activity", automated)):
+        summary[key] = [dict(v, event="view", at=v["viewed_at"], filename=summary["filename"]) for v in events]
     return summary
+
+
+def _activity(opens, attachments, attachment_key):
+    """Email opens and document views (attachments[attachment_key]) as one newest-first timeline."""
+    events = [dict(o, event="open", at=o["opened_at"]) for o in opens]
+    for att in attachments:
+        events += [dict(v, event="view", at=v["viewed_at"], filename=att["filename"]) for v in att[attachment_key]]
+    return sorted(events, key=lambda e: e["at"] or "", reverse=True)
 
 
 def summarize_email(email, open_rows, attachments):
@@ -996,9 +1132,14 @@ def summarize_email(email, open_rows, attachments):
         "last_client": counted[0]["client_name"] if counted else None,
         "opens": counted,  # Only recipient opens appear in the main timeline
         "automated_opens": automated,
+        "self_opens": own,
         "attachments": attachments,
         "attachment_count": len(attachments),
         "attachment_views": sum(a["view_count"] for a in attachments),
+        # Dashboard timelines: what the recipient did, what you did, and what machines did
+        "activity": _activity(counted, attachments, "views"),
+        "self_activity": _activity(own, attachments, "self_views"),
+        "automated_activity": _activity(automated, attachments, "automated_views"),
     }
 
 
@@ -1105,6 +1246,7 @@ def dashboard():
 
     ignored_rows = conn.execute("SELECT * FROM ignored_ips ORDER BY created_at DESC").fetchall()
     client_ip = get_client_ip()
+    now = utcnow()
 
     # Detect if running on localhost/loopback
     is_localhost = client_ip in LOCALHOST_ALIASES or "localhost" in request.host or "127.0.0.1" in request.host
@@ -1115,6 +1257,9 @@ def dashboard():
         standalone_attachments=standalone_attachments,
         client_ip=client_ip,
         is_client_ignored=is_ignored_ip(conn, client_ip),
+        client_network=device_network(client_ip),
+        devices=list_devices(conn, now),
+        self_device_days=round(SELF_DEVICE_TTL.total_seconds() / 86400),
         ignored_ips=[dict(r) for r in ignored_rows],
         env_ips=env_ignored_ips(),
         stats=dashboard_stats(conn),
@@ -1177,6 +1322,55 @@ def api_self_view():
         )
     conn.commit()
     return jsonify({"success": True, "marked_opens": marked})
+
+
+def list_devices(conn, now):
+    rows = conn.execute(
+        "SELECT * FROM sender_devices WHERE last_seen >= ? ORDER BY last_seen DESC",
+        ((now - SELF_DEVICE_TTL).isoformat(),),
+    ).fetchall()
+    return [dict(r, client_name=parse_client_device(r["user_agent"] or "")) for r in rows]
+
+
+@app.route("/api/heartbeat", methods=["POST"])
+@require_auth
+def api_heartbeat():
+    """The extension checks in from Gmail so the sender's current network is known before any opens."""
+    ip = get_client_ip()
+    return jsonify({"success": True, "ip": ip, "known_device": is_known_device(get_db(), ip, utcnow())})
+
+
+@app.route("/api/devices", methods=["GET", "POST"])
+@require_auth
+def api_devices():
+    """List the sender's recognised networks, or forget one ({"action": "remove", "network": ...})."""
+    conn = get_db()
+    if request.method == "POST":
+        data = request.get_json(silent=True) or request.form
+        network = (data.get("network") or "").strip()
+        if data.get("action") != "remove" or not network:
+            return jsonify({"error": 'Send {"action": "remove", "network": ...}'}), 400
+        conn.execute("DELETE FROM sender_devices WHERE network = ?", (network,))
+        conn.commit()
+        return jsonify({"success": True, "network": network})
+    return jsonify({"current_network": device_network(get_client_ip()), "devices": list_devices(conn, utcnow())})
+
+
+@app.route("/api/mark-self", methods=["POST"])
+@require_auth
+def api_mark_self():
+    """Correct one recorded open or document view: {"type": "open"|"view", "id": n, "is_self": true|false}."""
+    data = request.get_json(silent=True) or {}
+    table = {"open": "opens", "view": "attachment_views"}.get(data.get("type"))
+    event_id = data.get("id")
+    if table is None or not isinstance(event_id, int) or isinstance(event_id, bool):
+        return jsonify({"error": "type must be 'open' or 'view' and id an integer"}), 400
+    conn = get_db()
+    cur = conn.execute(f"UPDATE {table} SET is_self = ? WHERE id = ?", (1 if data.get("is_self", True) else 0, event_id))
+    conn.commit()
+    if not cur.rowcount:
+        return jsonify({"error": "Not found"}), 404
+    return jsonify({"success": True})
 
 
 @app.route("/api/my-ip")
@@ -1278,6 +1472,9 @@ def purge_expired(now=None):
             ).fetchall())
             conn.execute("DELETE FROM opens WHERE opened_at < ?", (cutoff,))
             conn.execute("DELETE FROM attachment_views WHERE viewed_at < ?", (cutoff,))
+
+        if SELF_DEVICE_TTL.total_seconds() > 0:
+            conn.execute("DELETE FROM sender_devices WHERE last_seen < ?", ((now - SELF_DEVICE_TTL).isoformat(),))
 
         # The sender IP is only needed in full while it can still mark self-opens.
         ttl_cutoff = (now - SENDER_IP_TTL).isoformat()

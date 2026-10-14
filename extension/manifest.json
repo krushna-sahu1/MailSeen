@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Gmail Email Open Tracker",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Automatic email open tracker for Gmail with self-hosted Flask backend, self-open filtering, and transparency disclosure.",
   "permissions": [
     "storage"

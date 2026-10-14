@@ -221,6 +221,11 @@ class TestAuth(BackendTestCase):
         self.assertEqual(self.client.get(f"/track/{tid}.png").status_code, 200)
         self.assertEqual(self.client.get("/login").status_code, 200)
 
+    def test_login_returns_to_the_same_page_and_filters(self):
+        res = self.client.get("/dashboard?page=2&status=opened")
+        self.assertEqual(self.client.post(res.headers["Location"], data={"password": PASSWORD}).headers["Location"],
+                         "/dashboard?page=2&status=opened")
+
     def test_dashboard_redirects_to_login(self):
         res = self.client.get("/dashboard")
         self.assertEqual(res.status_code, 302)
@@ -453,7 +458,7 @@ class TestSenderIpTtl(BackendTestCase):
         rows = self.client.get("/api/ignored-ips", headers=AUTH).get_json()["ignored_ips"]
         self.assertEqual(rows, [])
 
-    def test_sender_ip_is_self_only_within_ttl_and_only_for_its_email(self):
+    def test_sender_ip_is_self_for_its_email_within_ttl(self):
         sender = "198.51.100.7"
         res = self.client.post("/new", json={"label": "a"}, headers=AUTH, environ_overrides={"REMOTE_ADDR": sender})
         tid = res.get_json()["tracking_id"]
@@ -461,17 +466,147 @@ class TestSenderIpTtl(BackendTestCase):
         self.open_pixel(tid, ip=sender)
         self.assertEqual(self.status(tid)["self_open_count"], 1)
 
-        # A different email: the same IP is a recipient (e.g. a colleague behind the same NAT)
-        other = self.new_tracker("b")["tracking_id"]
-        self.open_pixel(other, ip=sender)
-        self.assertEqual(self.status(other)["open_count"], 1)
 
-        # After the TTL the sender IP no longer counts as self for the original email either
-        self.backdate(tid, app.SENDER_IP_TTL.total_seconds() + 60)
-        self.open_pixel(tid, ip=sender)
+class TestSenderDevices(BackendTestCase):
+    """Every network the sender uses the extension or dashboard from is "you" for SELF_DEVICE_TTL."""
+
+    SENDER = "198.51.100.7"
+
+    def authed(self, path, ip=SENDER, method="POST", **kwargs):
+        return self.client.open(path, method=method, headers=AUTH, environ_overrides={"REMOTE_ADDR": ip}, **kwargs)
+
+    def test_sender_network_is_self_on_every_email_after_the_ttl(self):
+        self.authed("/new", json={"label": "first"})
+        tid = self.new_tracker("later", age_seconds=app.SENDER_IP_TTL.total_seconds() + 60)["tracking_id"]
+        self.open_pixel(tid, ip=self.SENDER)
+        self.open_pixel(tid, ip="203.0.113.60")  # a real recipient
         status = self.status(tid)
         self.assertEqual(status["self_open_count"], 1)
         self.assertEqual(status["open_count"], 1)
+
+    def test_gmail_proxy_fetch_is_never_matched_to_a_device(self):
+        self.authed("/api/heartbeat", ip="66.249.84.1")
+        tid = self.new_tracker()["tracking_id"]
+        self.open_pixel(tid, ip="66.249.84.1", ua=GMAIL_PROXY_UA)
+        self.assertEqual(self.status(tid)["open_count"], 1)
+
+    def test_heartbeat_records_the_network_and_requires_auth(self):
+        self.assertEqual(self.client.post("/api/heartbeat").status_code, 401)
+        res = self.authed("/api/heartbeat").get_json()
+        self.assertEqual(res["ip"], self.SENDER)
+        self.assertTrue(res["known_device"])
+        tid = self.new_tracker()["tracking_id"]
+        self.open_pixel(tid, ip=self.SENDER)
+        self.assertEqual(self.status(tid)["self_open_count"], 1)
+
+    def test_dashboard_visit_records_the_network(self):
+        self.login()
+        self.client.get("/dashboard", environ_overrides={"REMOTE_ADDR": "198.51.100.20"})
+        tid = self.new_tracker()["tracking_id"]
+        self.open_pixel(tid, ip="198.51.100.20")
+        self.assertEqual(self.status(tid)["self_open_count"], 1)
+
+    def test_ipv6_devices_match_on_their_64(self):
+        self.authed("/api/heartbeat", ip="2001:db8:1:2::10")
+        tid = self.new_tracker()["tracking_id"]
+        self.open_pixel(tid, ip="2001:db8:1:2:aaaa:bbbb:cccc:1")  # same /64, new privacy address
+        self.open_pixel(tid, ip="2001:db8:1:3::1")
+        status = self.status(tid)
+        self.assertEqual(status["self_open_count"], 1)
+        self.assertEqual(status["open_count"], 1)
+
+    def test_device_expires(self):
+        self.authed("/api/heartbeat")
+        stale = (app.utcnow() - app.SELF_DEVICE_TTL - timedelta(days=1)).isoformat()
+        with closing(app.connect()) as conn:
+            conn.execute("UPDATE sender_devices SET last_seen = ?", (stale,))
+            conn.commit()
+        tid = self.new_tracker()["tracking_id"]
+        self.open_pixel(tid, ip=self.SENDER)
+        self.assertEqual(self.status(tid)["open_count"], 1)
+        app.purge_expired()
+        with closing(app.connect()) as conn:
+            remaining = conn.execute("SELECT network FROM sender_devices WHERE network = ?", (self.SENDER,)).fetchall()
+        self.assertEqual(remaining, [])
+
+    def test_known_device_writes_are_throttled(self):
+        self.authed("/api/heartbeat")
+        earlier = (app.utcnow() - timedelta(minutes=1)).isoformat()
+        with closing(app.connect()) as conn:
+            conn.execute("UPDATE sender_devices SET last_seen = ?", (earlier,))
+            conn.commit()
+        self.authed("/api/heartbeat")
+        with closing(app.connect()) as conn:
+            last_seen = conn.execute("SELECT last_seen FROM sender_devices WHERE network = ?", (self.SENDER,)).fetchone()[0]
+        self.assertEqual(last_seen, earlier)
+
+    def test_document_views_from_a_device_are_self(self):
+        self.authed("/api/heartbeat")
+        aid = self.upload("doc.pdf", PDF_BYTES).get_json()["attachment_id"]
+        page = self.client.get(f"/view/{aid}").get_data(as_text=True)
+        marker = 'data-beacon-token="'
+        token = page[page.index(marker) + len(marker):].split('"', 1)[0]
+        self.client.post(f"/view/{aid}/seen", data={"token": token},
+                         environ_overrides={"REMOTE_ADDR": self.SENDER}, headers={"User-Agent": CHROME_UA})
+        views = self.client.get(f"/api/attachment-status/{aid}", headers=AUTH).get_json()
+        self.assertEqual((views["view_count"], views["self_view_count"]), (0, 1))
+
+    def test_list_and_forget_devices(self):
+        self.authed("/api/heartbeat")
+        listing = self.authed("/api/devices", method="GET").get_json()
+        self.assertEqual(listing["current_network"], self.SENDER)
+        self.assertIn(self.SENDER, [d["network"] for d in listing["devices"]])
+        self.assertEqual(self.authed("/api/devices", json={"action": "bogus"}).status_code, 400)
+        self.authed("/api/devices", ip="203.0.113.1", json={"action": "remove", "network": self.SENDER})
+        networks = [d["network"] for d in self.authed("/api/devices", ip="203.0.113.1", method="GET").get_json()["devices"]]
+        self.assertNotIn(self.SENDER, networks)
+
+    def test_disabled_with_zero_days(self):
+        original = app.SELF_DEVICE_TTL
+        app.SELF_DEVICE_TTL = timedelta(0)
+        try:
+            self.authed("/api/heartbeat")
+            tid = self.new_tracker()["tracking_id"]
+            self.open_pixel(tid, ip=self.SENDER)
+            self.assertEqual(self.status(tid)["open_count"], 1)
+        finally:
+            app.SELF_DEVICE_TTL = original
+
+    def test_migration_seeds_devices_from_untruncated_sender_ips(self):
+        legacy = self.tmpdir / "legacy.db"
+        recent = app.utcnow_iso()
+        with closing(sqlite3.connect(legacy)) as conn:
+            conn.executescript(f"""
+                CREATE TABLE emails (id TEXT PRIMARY KEY, label TEXT, created_at TEXT, sender_ip TEXT);
+                INSERT INTO emails VALUES ('e1', 'a', '{recent}', '198.51.100.7');
+                INSERT INTO emails VALUES ('e2', 'b', '{recent}', '198.51.100.0');
+            """)
+        app.app.config["DB_PATH"] = legacy
+        app.init_db()
+        with closing(app.connect()) as conn:
+            networks = {r[0] for r in conn.execute("SELECT network FROM sender_devices")}
+        self.assertEqual(networks, {"198.51.100.7"})
+
+
+class TestMarkSelf(BackendTestCase):
+    def mark(self, payload):
+        return self.client.post("/api/mark-self", json=payload, headers=AUTH)
+
+    def test_mark_open_as_self_and_back(self):
+        tid = self.new_tracker()["tracking_id"]
+        self.open_pixel(tid)
+        open_id = self.status(tid)["opens"][0]["id"]
+        self.assertEqual(self.mark({"type": "open", "id": open_id}).status_code, 200)
+        self.assertEqual((self.status(tid)["open_count"], self.status(tid)["self_open_count"]), (0, 1))
+        self.mark({"type": "open", "id": open_id, "is_self": False})
+        self.assertEqual(self.status(tid)["open_count"], 1)
+
+    def test_validation(self):
+        self.assertEqual(self.mark({"type": "open", "id": "1"}).status_code, 400)
+        self.assertEqual(self.mark({"type": "nope", "id": 1}).status_code, 400)
+        self.assertEqual(self.mark({"type": "open", "id": True}).status_code, 400)
+        self.assertEqual(self.mark({"type": "view", "id": 999}).status_code, 404)
+        self.assertEqual(self.client.post("/api/mark-self", json={"type": "open", "id": 1}).status_code, 401)
 
     def test_classification_is_not_rewritten_retroactively(self):
         tid = self.new_tracker()["tracking_id"]
@@ -480,7 +615,7 @@ class TestSenderIpTtl(BackendTestCase):
         # The dashboard and the API agree: the earlier open still counts
         self.assertEqual(self.status(tid)["open_count"], 1)
         self.login()
-        self.assertIn(b"Opened 1x", self.client.get("/dashboard").data)
+        self.assertIn(b'data-open-count="1"', self.client.get("/dashboard").data)
 
 
 class TestSelfViewSuppression(BackendTestCase):
@@ -812,7 +947,7 @@ class TestDashboardPerformance(BackendTestCase):
         self.assertIn("Subject 0", page3)
         self.assertIn("Page 3 of 3", beyond)  # clamped
         # Stats are global, not per page
-        self.assertIn("All (7)", page3)
+        self.assertIn('data-tab="all" data-count="7"', page3)
 
     def test_status_filter_and_search(self):
         self.login()
@@ -867,6 +1002,49 @@ class TestSubjectRecipients(BackendTestCase):
         with closing(app.connect()) as conn:
             row = conn.execute("SELECT subject, recipients FROM emails WHERE id = 'e1'").fetchone()
         self.assertEqual(tuple(row), ("A->B migration", "dan@example.com"))
+
+
+class TestDashboardContent(BackendTestCase):
+    def test_activity_separates_recipient_own_and_automated_opens(self):
+        self.client.post("/api/heartbeat", headers=AUTH, environ_overrides={"REMOTE_ADDR": "198.51.100.7"})
+        tid = self.new_tracker("x", subject="Proposal", recipients="bob@example.com")["tracking_id"]
+        self.open_pixel(tid, ip="203.0.113.60")
+        self.open_pixel(tid, ip="198.51.100.7")
+        self.open_pixel(tid, ua=APPLE_MPP_UA)
+        self.login()
+        html = self.client.get("/dashboard").get_data(as_text=True)
+        self.assertIn('data-open-count="1"', html)
+        self.assertIn("This was me", html)
+        self.assertIn("1 open by you, hidden", html)
+        self.assertIn("1 automated fetch, not counted", html)
+        self.assertIn("203.0.113.x", html)  # truncated network, shown readably
+
+    def test_settings_lists_recognised_networks_and_ignored_ips(self):
+        self.client.post("/api/ignored-ips", json={"ip": "192.0.2.5"}, headers=AUTH)
+        self.login()
+        html = self.client.get("/dashboard", environ_overrides={"REMOTE_ADDR": "198.51.100.9"}).get_data(as_text=True)
+        self.assertIn('data-network="198.51.100.9"', html)
+        self.assertIn("This device", html)
+        self.assertIn('data-ip="192.0.2.5"', html)
+
+    def test_standalone_document_views(self):
+        aid = self.upload("brief.pdf", PDF_BYTES).get_json()["attachment_id"]
+        page = self.client.get(f"/view/{aid}").get_data(as_text=True)
+        marker = 'data-beacon-token="'
+        token = page[page.index(marker) + len(marker):].split('"', 1)[0]
+        self.client.post(f"/view/{aid}/seen", data={"token": token},
+                         environ_overrides={"REMOTE_ADDR": "203.0.113.60"}, headers={"User-Agent": CHROME_UA})
+        self.login()
+        html = self.client.get("/dashboard").get_data(as_text=True)
+        self.assertIn(f'id="att-card-{aid}"', html)
+        self.assertIn("Viewed 1×", html)
+        self.assertIn("Viewed brief.pdf", html)
+
+    def test_viewer_page_is_unbranded(self):
+        aid = self.upload("brief.pdf", PDF_BYTES).get_json()["attachment_id"]
+        html = self.client.get(f"/view/{aid}").get_data(as_text=True)
+        self.assertNotIn("MailSeen", html)
+        self.assertNotIn("Shared securely", html)
 
 
 class TestSecurityHeaders(BackendTestCase):

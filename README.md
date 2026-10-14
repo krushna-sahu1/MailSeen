@@ -43,6 +43,8 @@ $env:MAILSEEN_PROXY_HOPS="0"                             # no reverse proxy when
 ```
 Generate random values with `python -c "import secrets; print(secrets.token_urlsafe(32))"`.
 
+Or put the same `KEY=value` lines in a `.env` file (git-ignored) and start with `python run_local.py`, which loads it.
+
 Run locally:
 ```bash
 python app.py
@@ -61,6 +63,7 @@ Your backend will run at `http://localhost:5000`.
 | `MAILSEEN_DB_PATH`, `MAILSEEN_UPLOAD_DIR` | Override the database file / uploads directory individually |
 | `MAILSEEN_RETENTION_DAYS` | Delete emails, documents and opens older than this (default `90`; `0` keeps everything) |
 | `MAILSEEN_SENDER_IP_TTL_HOURS` | How long your IP counts as "self" for an email you just sent (default `6`) |
+| `MAILSEEN_SELF_DEVICE_DAYS` | How long a network you used the extension or dashboard from counts as "you" (default `30`; `0` turns it off) |
 | `MAILSEEN_MIN_HUMAN_SECONDS` | Fetches sooner than this after sending count as scanners (default `5`) |
 
 To filter your own IP via environment variable, you can optionally set:
@@ -115,10 +118,11 @@ An image load is not always a person reading your email. Every open is classifie
 | `apple_mpp` | Apple Mail Privacy Protection prefetch on delivery (bare `Mozilla/5.0` UA or Apple's `17.0.0.0/8`) | ❌ shown as "🤖 automated" |
 | `scanner` | Security scanners and link checkers, scripts, `HEAD` probes, and anything within a few seconds of sending | ❌ shown as "🤖 automated" |
 
-**Your own opens** are excluded in three ways:
-- **Your sending IP**: for 6 hours after you send an email, opens from the IP you sent it from count as yours. This applies only to that email; it no longer adds your IP to a global ignore list forever.
+**Your own opens** are excluded in these ways:
+- **Your networks**: every network you use the extension (it checks in while Gmail is open) or the dashboard from is remembered for 30 days. Opens from it, such as reading your sent email in Outlook or on your phone over the same Wi-Fi, count as yours. IPv6 networks match on their /64, so rotating privacy addresses still match. Gmail/Yahoo proxy fetches never match, since they come from Google's or Yahoo's servers. The dashboard's **Settings** lists these networks and lets you forget one. Trade-off: a recipient on the same network as you (same office Wi-Fi) also counts as you.
 - **Your Gmail**: when you view your own tracked message (Sent folder, a thread, or quoted text in a reply), the extension hides the pixel and tells the backend, so Gmail's proxy fetch is recorded as yours. Older pixels quoted into a reply are removed before sending, so the reply's recipient doesn't trigger opens on earlier emails.
-- **Manual ignore list**: use **Filter My IP** in the popup, or set `IGNORED_IPS="ip1,ip2"`. This only affects opens from then on.
+- **Manual ignore list**: use **Filter My IP** in the popup, the dashboard's Settings, or set `IGNORED_IPS="ip1,ip2"`. This only affects opens from then on.
+- **This was me**: expand an email in the dashboard and mark any open as yours (or **Not me** to undo).
 
 **Document views** are recorded by the viewer page only after it has been visible for 2 seconds. Link scanners that just fetch the URL don't count.
 
@@ -174,6 +178,9 @@ Deploy this repository to Render.com:
 - 🔒 `GET /api/status/<tracking_id>`: JSON status. `opened`/`open_count` include only `human` and `proxy` opens; `automated_opens` and `self_open_count` are reported separately.
 - 🔒 `POST /api/self-view`: `{"tracking_ids": [...]}`. The extension reports that you are viewing these messages in Gmail.
 - `POST /view/<id>/seen`: View beacon sent by the viewer page (requires the signed token embedded in the page).
+- 🔒 `POST /api/heartbeat`: The extension checks in from Gmail so your current network is recognised.
+- 🔒 `GET/POST /api/devices`: Lists your recognised networks, or forgets one with `{"action": "remove", "network": ...}`.
+- 🔒 `POST /api/mark-self`: `{"type": "open"|"view", "id": n, "is_self": true|false}` corrects one open or document view.
 - 🔒 `GET /api/my-ip`: Returns detected client IP and filter status.
 - 🔒 `GET/POST /api/ignored-ips`: Lists or adds/removes IPs from the self-open filter.
 - 🔒 `POST /api/upload-attachment`, `/api/delete-attachment`, `/api/delete-email`, `/api/clear-all`.

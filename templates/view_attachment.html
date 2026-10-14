@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>{{ attachment.filename }} · MailSeen</title>
+  <title>{{ attachment.filename }}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -52,6 +52,7 @@
       display: flex;
       align-items: center;
       gap: 10px;
+      min-width: 0;
     }
 
     .brand-icon {
@@ -66,12 +67,6 @@
       box-shadow: 0 2px 8px rgba(79, 70, 229, 0.25);
     }
 
-    .brand-name {
-      font-size: 16px;
-      font-weight: 700;
-      letter-spacing: -0.02em;
-    }
-
     .file-info-bar {
       display: flex;
       align-items: center;
@@ -79,13 +74,16 @@
     }
 
     .file-meta {
-      text-align: right;
+      min-width: 0;
     }
 
     .file-name {
       font-size: 14px;
       font-weight: 600;
       color: var(--text);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .file-details {
@@ -204,39 +202,20 @@
       box-shadow: 0 6px 20px rgba(79, 70, 229, 0.3);
     }
 
-    /* Footer */
-    .viewer-footer {
-      padding: 10px 24px;
-      background: var(--surface);
-      border-top: 1px solid var(--border);
-      text-align: center;
-      font-size: 11px;
-      color: var(--text-dim);
-    }
-
-    .viewer-footer a {
-      color: var(--text-muted);
-      text-decoration: none;
-    }
-
-    .viewer-footer a:hover {
-      color: var(--text);
-    }
   </style>
 </head>
 <body>
   <!-- Top Bar -->
   <div class="top-bar">
     <div class="brand">
-      <div class="brand-icon">📬</div>
-      <div class="brand-name">MailSeen</div>
-    </div>
-
-    <div class="file-info-bar">
+      <div class="brand-icon">📄</div>
       <div class="file-meta">
         <div class="file-name">{{ attachment.filename }}</div>
         <div class="file-details">{{ attachment.file_size_display }}</div>
       </div>
+    </div>
+
+    <div class="file-info-bar">
       <a href="{{ file_url }}?dl=1" class="btn-download">
         📥 Download
       </a>
@@ -265,10 +244,6 @@
     {% endif %}
   </div>
 
-  <!-- Footer -->
-  <div class="viewer-footer">
-    Shared securely via <a href="/">MailSeen</a>
-  </div>
   <!-- A view is recorded only after the page has been visible for 2 seconds, so link scanners and
        preview bots that fetch the page without showing it don't count. -->
   <script id="view-beacon" data-beacon-url="{{ beacon_url }}" data-beacon-token="{{ beacon_token }}">

@@ -233,6 +233,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return;
       }
 
+      if (message.type === "HEARTBEAT") {
+        // Lets the backend learn the network Gmail is open on, so your own opens from it are ignored
+        if (!settings.apiToken) {
+          sendResponse({ success: false, error: "No API token" });
+          return;
+        }
+        const res = await fetch(`${baseUrl}/api/heartbeat`, { method: "POST", headers: authHeaders(settings.apiToken) });
+        sendResponse({ success: res.ok });
+        return;
+      }
+
       if (message.type === "GET_IGNORED_IPS") {
         const targetUrl = `${baseUrl}/api/ignored-ips`;
         const res = await fetch(targetUrl, { headers: authHeaders(settings.apiToken) });

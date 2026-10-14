@@ -46,6 +46,17 @@
   // Pick up changes saved from the popup/options page immediately, instead of polling
   chrome.storage.onChanged.addListener(refreshSettings);
 
+  // Check in with the backend while Gmail is open, so opens from this network (e.g. reading your own
+  // email in Outlook or on another device on the same Wi-Fi) are recognised as yours. Re-sent periodically
+  // and after reconnecting, because the network's public IP can change.
+  const HEARTBEAT_INTERVAL_MS = 30 * 60 * 1000;
+  function sendHeartbeat() {
+    chrome.runtime.sendMessage({ type: "HEARTBEAT" }, () => void chrome.runtime.lastError);
+  }
+  sendHeartbeat();
+  setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS);
+  window.addEventListener("online", sendHeartbeat);
+
   // ─── Compose Container Detection ───────────────────────────────────
 
   // Helper to find the compose or inline reply container
@@ -469,11 +480,6 @@
         <tr>
           <td style="padding: 0 18px 16px;">
             <a href="${viewUrl}" target="_blank" style="display: inline-block; padding: 9px 22px; background: linear-gradient(135deg, #4f46e5, #6366f1); color: #ffffff; text-decoration: none; border-radius: 7px; font-size: 13px; font-weight: 600; letter-spacing: 0.01em;">📥 View Document</a>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding: 8px 18px; background: #f9fafb; border-top: 1px solid #f0f0f0;">
-            <div style="font-size: 10px; color: #b0b0b0; letter-spacing: 0.02em;">Shared securely via MailSeen</div>
           </td>
         </tr>
       </table>

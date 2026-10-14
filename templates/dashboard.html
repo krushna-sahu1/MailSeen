@@ -2,1288 +2,1130 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>MailSeen · Email & Document Tracker</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="csrf-token" content="{{ session.csrf_token }}" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>MailSeen · Dashboard</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
     :root {
-      --bg: #090a0f;
-      --surface: #10131b;
-      --surface-elevated: #161a25;
-      --border: #1d2232;
-      --border-hover: #2e364f;
-      --text: #f1f3f9;
-      --text-muted: #828c9f;
-      --text-dim: #4e576d;
-      --primary: #4f46e5;
-      --primary-hover: #6366f1;
-      --green: #10b981;
-      --green-bg: rgba(16, 185, 129, 0.12);
-      --green-border: rgba(16, 185, 129, 0.25);
-      --rose: #ef4444;
-      --rose-bg: rgba(239, 68, 68, 0.12);
-      --blue: #3b82f6;
-      --blue-bg: rgba(59, 130, 246, 0.12);
-      --purple: #8b5cf6;
-      --purple-bg: rgba(139, 92, 246, 0.12);
-      --purple-border: rgba(139, 92, 246, 0.25);
-      --orange: #f59e0b;
-      --orange-bg: rgba(245, 158, 11, 0.12);
-      --radius: 10px;
+      --bg: #f5f6f8;
+      --surface: #ffffff;
+      --surface-2: #f8f9fb;
+      --surface-hover: #f3f4f7;
+      --border: #e5e7eb;
+      --border-strong: #d4d7dd;
+      --text: #0f172a;
+      --text-2: #334155;
+      --muted: #64748b;
+      --faint: #94a3b8;
+      --accent: #4f46e5;
+      --accent-hover: #4338ca;
+      --accent-soft: #eef2ff;
+      --green: #047857;
+      --green-soft: #ecfdf5;
+      --green-dot: #10b981;
+      --amber: #b45309;
+      --amber-soft: #fffbeb;
+      --red: #dc2626;
+      --red-soft: #fef2f2;
+      --purple: #6d28d9;
+      --purple-soft: #f5f3ff;
+      --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+      --shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+      --shadow-lg: 0 20px 40px -12px rgba(15, 23, 42, 0.25);
+      --radius: 12px;
+      --radius-sm: 8px;
       --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      --font-mono: 'JetBrains Mono', monospace;
+      color-scheme: light;
     }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0b0d12;
+        --surface: #12151c;
+        --surface-2: #161a23;
+        --surface-hover: #1a1f2a;
+        --border: #232836;
+        --border-strong: #2f3647;
+        --text: #e8ebf1;
+        --text-2: #c3c9d5;
+        --muted: #949db0;
+        --faint: #6b7385;
+        --accent: #818cf8;
+        --accent-hover: #a5b4fc;
+        --accent-soft: rgba(129, 140, 248, 0.12);
+        --green: #34d399;
+        --green-soft: rgba(52, 211, 153, 0.12);
+        --green-dot: #34d399;
+        --amber: #fbbf24;
+        --amber-soft: rgba(251, 191, 36, 0.12);
+        --red: #f87171;
+        --red-soft: rgba(248, 113, 113, 0.12);
+        --purple: #a78bfa;
+        --purple-soft: rgba(167, 139, 250, 0.12);
+        --shadow-sm: none;
+        --shadow: none;
+        --shadow-lg: 0 20px 40px -12px rgba(0, 0, 0, 0.6);
+        color-scheme: dark;
+      }
     }
 
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { -webkit-text-size-adjust: 100%; }
     body {
-      background-color: var(--bg);
+      background: var(--bg);
       color: var(--text);
       font-family: var(--font);
       font-size: 14px;
       line-height: 1.5;
-      min-height: 100vh;
       -webkit-font-smoothing: antialiased;
     }
+    a { color: inherit; }
+    button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+    svg.icon { width: 16px; height: 16px; flex: none; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
 
-    .container {
-      max-width: 920px;
-      margin: 0 auto;
-      padding: 32px 20px 80px;
-    }
-
-    /* Top Navigation */
-    header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 16px;
-      padding-bottom: 24px;
+    /* ─── Top bar ─────────────────────────────────────────── */
+    .topbar {
+      position: sticky; top: 0; z-index: 20;
+      background: color-mix(in srgb, var(--surface) 88%, transparent);
+      backdrop-filter: saturate(180%) blur(12px);
       border-bottom: 1px solid var(--border);
-      margin-bottom: 28px;
     }
-
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 12px;
+    .topbar-inner {
+      max-width: 1120px; margin: 0 auto; padding: 12px 24px;
+      display: flex; align-items: center; gap: 16px;
     }
-
-    .brand-icon {
-      width: 38px;
-      height: 38px;
-      background: linear-gradient(135deg, #4f46e5, #6366f1);
-      border-radius: 9px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 19px;
-      box-shadow: 0 4px 14px rgba(79, 70, 229, 0.25);
+    .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; flex: none; }
+    .brand-mark {
+      width: 30px; height: 30px; border-radius: 8px;
+      background: linear-gradient(135deg, #6366f1, #4f46e5);
+      display: grid; place-items: center; color: #fff;
+      box-shadow: 0 2px 6px rgba(79, 70, 229, 0.3);
     }
+    .brand-mark svg { width: 16px; height: 16px; }
+    .brand-name { font-weight: 700; font-size: 15px; letter-spacing: -0.01em; }
 
-    .brand-title {
-      font-size: 18px;
-      font-weight: 700;
-      letter-spacing: -0.02em;
-      display: flex;
-      align-items: center;
-      gap: 8px;
+    .search {
+      flex: 1; max-width: 420px; margin-left: 12px; position: relative;
     }
-
-    .live-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--green);
-      background: var(--green-bg);
-      border: 1px solid var(--green-border);
-      padding: 2px 8px;
-      border-radius: 999px;
+    .search svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--faint); pointer-events: none; }
+    .search input {
+      width: 100%; height: 36px; padding: 0 64px 0 34px;
+      background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm);
+      font: inherit; color: var(--text); transition: border-color .15s, background .15s, box-shadow .15s;
     }
-
-    .live-badge::before {
-      content: "";
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: var(--green);
-      box-shadow: 0 0 6px var(--green);
-      animation: pulse 2s infinite;
-    }
-
-    @keyframes pulse {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.4; transform: scale(0.85); }
-    }
-
-    .header-actions {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 7px 14px;
-      border-radius: 7px;
-      font-size: 12px;
-      font-weight: 500;
-      font-family: inherit;
-      cursor: pointer;
-      border: 1px solid var(--border);
-      background: var(--surface);
-      color: var(--text);
-      transition: all 0.15s ease;
-      user-select: none;
-    }
-
-    .btn:hover {
-      background: var(--surface-elevated);
-      border-color: var(--border-hover);
-    }
-
-    .btn:active {
-      transform: translateY(1px);
-    }
-
-    .btn-danger {
-      color: var(--rose);
-      border-color: rgba(239, 68, 68, 0.25);
-    }
-
-    .btn-danger:hover {
-      background: var(--rose-bg);
-      border-color: var(--rose);
-    }
-
-    /* Minimalist Stat Cards */
-    .stats-row {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 16px;
-      margin-bottom: 28px;
-    }
-
-    .stat-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 18px 20px;
-      display: flex;
-      flex-direction: column;
-      transition: border-color 0.15s ease;
-    }
-
-    .stat-card:hover {
-      border-color: var(--border-hover);
-    }
-
-    .stat-label {
-      font-size: 12px;
-      font-weight: 500;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 6px;
-    }
-
-    .stat-number {
-      font-size: 26px;
-      font-weight: 700;
-      letter-spacing: -0.02em;
-      color: var(--text);
-      display: flex;
-      align-items: baseline;
-      gap: 8px;
-    }
-
-    .progress-bar {
-      height: 4px;
-      background: rgba(255, 255, 255, 0.06);
-      border-radius: 999px;
-      margin-top: 12px;
-      overflow: hidden;
-    }
-
-    .progress-fill {
-      height: 100%;
-      background: var(--green);
-      border-radius: 999px;
-      transition: width 0.4s ease;
-      width: 0%;
-    }
-
-    /* Search & Filter Bar */
-    .controls-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-      flex-wrap: wrap;
-      margin-bottom: 16px;
-    }
-
-    .search-wrap {
-      position: relative;
-      flex: 1;
-      min-width: 240px;
-    }
-
-    .search-input {
-      width: 100%;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 9px 14px 9px 34px;
-      color: var(--text);
-      font-size: 13px;
-      outline: none;
-      font-family: inherit;
-      transition: border-color 0.15s ease;
-    }
-
-    .search-input:focus {
-      border-color: var(--border-hover);
-    }
-
-    .search-icon {
-      position: absolute;
-      left: 11px;
-      top: 50%;
-      transform: translateY(-50%);
-      color: var(--text-dim);
-      font-size: 13px;
-      pointer-events: none;
-    }
-
-    .filter-tabs {
-      display: flex;
-      gap: 4px;
-      background: var(--surface);
-      padding: 3px;
-      border-radius: 8px;
-      border: 1px solid var(--border);
-    }
-
-    .tab-btn {
-      padding: 6px 12px;
-      border-radius: 6px;
-      font-size: 12px;
-      font-weight: 500;
-      color: var(--text-muted);
-      cursor: pointer;
-      border: none;
-      background: transparent;
-      transition: all 0.15s ease;
-    }
-
-    .tab-btn:hover {
-      color: var(--text);
-    }
-
-    .tab-btn.is-active {
-      background: var(--surface-elevated);
-      color: var(--text);
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-    }
-
-    a.tab-btn,
-    a.btn {
-      display: inline-block;
+    .search input::placeholder { color: var(--faint); }
+    .search input:focus { outline: none; background: var(--surface); border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+    .search input::-webkit-search-cancel-button { display: none; }
+    .search kbd, .search .search-clear {
+      position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+      font: 500 11px var(--font); color: var(--faint);
+      border: 1px solid var(--border); border-radius: 5px; padding: 1px 6px; background: var(--surface);
       text-decoration: none;
     }
+    .search .search-clear:hover { color: var(--text); }
 
-    .pagination {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
-      margin: 18px 0 8px;
+    .topbar-actions { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+    .live {
+      display: inline-flex; align-items: center; gap: 7px;
+      font-size: 12px; color: var(--muted); margin-right: 6px; white-space: nowrap;
     }
-
-    .pagination-label {
-      font-size: 12px;
-      color: var(--text-muted);
-    }
-
-    /* Section titles */
-    .section-heading {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 16px;
-      margin-top: 36px;
-    }
-
-    .section-heading h2 {
-      font-size: 16px;
-      font-weight: 700;
-      letter-spacing: -0.01em;
-    }
-
-    .section-heading .count-badge {
-      font-size: 11px;
-      font-weight: 600;
-      padding: 2px 8px;
-      border-radius: 999px;
-      background: var(--purple-bg);
-      color: var(--purple);
-      border: 1px solid var(--purple-border);
-    }
-
-    /* Email Items */
-    .email-list {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-
-    .email-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      transition: border-color 0.15s ease;
-      overflow: hidden;
-    }
-
-    .email-card:hover {
-      border-color: var(--border-hover);
-    }
-
-    .email-header {
-      padding: 16px 20px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 16px;
-      flex-wrap: wrap;
-    }
-
-    .email-details {
-      flex: 1;
-      min-width: 260px;
-    }
-
-    .email-title-line {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
-      margin-bottom: 6px;
-    }
-
-    .email-subject {
-      font-size: 15px;
-      font-weight: 600;
-      color: var(--text);
-      letter-spacing: -0.01em;
-    }
-
-    .email-recipient-tag {
-      font-size: 12px;
-      color: #93c5fd;
-      background: var(--blue-bg);
-      border: 1px solid rgba(59, 130, 246, 0.25);
-      padding: 2px 8px;
-      border-radius: 4px;
-      font-family: var(--font-mono);
-    }
-
-    .email-meta-line {
-      font-size: 12px;
-      color: var(--text-muted);
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-
-    .badge-opened {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      background: var(--green-bg);
-      color: var(--green);
-      border: 1px solid var(--green-border);
-      padding: 5px 11px;
-      border-radius: 999px;
-      font-size: 12px;
-      font-weight: 600;
-      white-space: nowrap;
-    }
-
-    .badge-waiting {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      background: rgba(255, 255, 255, 0.05);
-      color: var(--text-muted);
-      border: 1px solid var(--border);
-      padding: 5px 11px;
-      border-radius: 999px;
-      font-size: 12px;
-      font-weight: 500;
-      white-space: nowrap;
-    }
-
-    .badge-attachment {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      background: var(--purple-bg);
-      color: var(--purple);
-      border: 1px solid var(--purple-border);
-      padding: 4px 10px;
-      border-radius: 999px;
-      font-size: 11px;
-      font-weight: 600;
-      white-space: nowrap;
-    }
-
-    .badge-attachment-viewed {
-      background: var(--orange-bg);
-      color: var(--orange);
-      border-color: rgba(245, 158, 11, 0.25);
-    }
-
-    .card-actions {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
+    .live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green-dot); box-shadow: 0 0 0 3px var(--green-soft); }
+    .live.is-paused .live-dot { background: var(--faint); box-shadow: none; }
 
     .icon-btn {
-      width: 32px;
-      height: 32px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 6px;
-      border: 1px solid var(--border);
-      background: transparent;
-      color: var(--text-muted);
-      cursor: pointer;
+      width: 34px; height: 34px; display: inline-grid; place-items: center;
+      border-radius: var(--radius-sm); color: var(--muted); transition: background .15s, color .15s;
+    }
+    .icon-btn:hover { background: var(--surface-hover); color: var(--text); }
+    .icon-btn.is-spinning svg { animation: spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      height: 34px; padding: 0 12px; border-radius: var(--radius-sm);
+      border: 1px solid var(--border); background: var(--surface); color: var(--text-2);
+      font-size: 13px; font-weight: 500; white-space: nowrap; text-decoration: none;
+      transition: background .15s, border-color .15s, color .15s;
+    }
+    .btn:hover { background: var(--surface-hover); border-color: var(--border-strong); color: var(--text); }
+    .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); color: #fff; }
+    .btn-danger { color: var(--red); }
+    .btn-danger:hover { background: var(--red-soft); border-color: var(--red); color: var(--red); }
+    .btn-danger-solid { background: var(--red); border-color: var(--red); color: #fff; }
+    .btn-danger-solid:hover { background: #b91c1c; border-color: #b91c1c; color: #fff; }
+    .btn-sm { height: 28px; padding: 0 10px; font-size: 12px; }
+    .btn-ghost { border-color: transparent; background: transparent; color: var(--muted); }
+    .btn-ghost:hover { background: var(--surface-hover); border-color: transparent; }
+
+    /* ─── Layout ──────────────────────────────────────────── */
+    .page { max-width: 1120px; margin: 0 auto; padding: 28px 24px 64px; }
+    .page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
+    .page-title { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; }
+    .page-sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
+
+    .notice {
+      display: flex; gap: 12px; align-items: flex-start;
+      padding: 12px 14px; border-radius: var(--radius); margin-bottom: 20px;
+      background: var(--amber-soft); color: var(--amber); border: 1px solid color-mix(in srgb, var(--amber) 25%, transparent);
       font-size: 13px;
-      transition: all 0.15s ease;
+    }
+    .notice strong { font-weight: 600; }
+    .notice svg { margin-top: 2px; }
+
+    /* ─── KPI cards ───────────────────────────────────────── */
+    .kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 24px; }
+    .kpi {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 16px 18px; box-shadow: var(--shadow-sm);
+    }
+    .kpi-label { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 500; color: var(--muted); }
+    .kpi-label svg { width: 14px; height: 14px; }
+    .kpi-value { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; margin-top: 6px; line-height: 1.2; font-variant-numeric: tabular-nums; }
+    .kpi-value small { font-size: 13px; font-weight: 500; color: var(--muted); margin-left: 4px; letter-spacing: 0; }
+    .kpi-foot { font-size: 12px; color: var(--muted); margin-top: 4px; }
+    .meter { height: 6px; border-radius: 99px; background: var(--surface-hover); margin-top: 10px; overflow: hidden; }
+    .meter > span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--green-dot), #059669); }
+
+    /* ─── Panels ──────────────────────────────────────────── */
+    .panel {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      box-shadow: var(--shadow); overflow: hidden;
+    }
+    .panel + .panel, .panel + .section-title { margin-top: 28px; }
+    .panel-head {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+      padding: 12px 14px; border-bottom: 1px solid var(--border);
+    }
+    .section-title { display: flex; align-items: baseline; gap: 8px; margin: 28px 2px 12px; font-size: 15px; font-weight: 600; }
+    .section-title span { color: var(--muted); font-weight: 500; font-size: 13px; }
+
+    .tabs { display: inline-flex; padding: 3px; gap: 2px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 9px; }
+    .tab {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 5px 12px; border-radius: 7px; font-size: 13px; font-weight: 500; color: var(--muted); text-decoration: none;
+      transition: color .15s, background .15s;
+    }
+    .tab:hover { color: var(--text); }
+    .tab.is-active { background: var(--surface); color: var(--text); box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08); }
+    .tab-count { font-size: 11px; font-weight: 600; color: var(--faint); font-variant-numeric: tabular-nums; }
+    .tab.is-active .tab-count { color: var(--accent); }
+
+    .hint { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+    .hint button { color: var(--accent); font-weight: 500; }
+    .hint button:hover { text-decoration: underline; }
+
+    /* ─── Email rows ──────────────────────────────────────── */
+    .email-list { list-style: none; }
+    .email-card { border-bottom: 1px solid var(--border); }
+    .email-card:last-child { border-bottom: 0; }
+    .row-main {
+      width: 100%; text-align: left;
+      display: grid; grid-template-columns: 32px minmax(0, 1fr) auto 92px 16px; align-items: center; gap: 14px;
+      padding: 14px 16px; transition: background .12s;
+    }
+    .row-main:hover { background: var(--surface-hover); }
+    .is-open > .row-main { background: var(--surface-2); }
+
+    .status-icon { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; }
+    .status-icon svg { width: 15px; height: 15px; }
+    .status-opened { background: var(--green-soft); color: var(--green); }
+    .status-waiting { background: var(--surface-hover); color: var(--faint); }
+
+    .row-text { min-width: 0; }
+    .email-subject { display: block; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .email-recipient-tag { display: block; font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .row-text .no-subject { color: var(--faint); font-style: italic; }
+
+    .row-status { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+    .row-last { font-size: 12px; color: var(--muted); white-space: nowrap; }
+    .pill {
+      display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px; border-radius: 99px;
+      font-size: 12px; font-weight: 500; white-space: nowrap; font-variant-numeric: tabular-nums;
+    }
+    .pill svg { width: 12px; height: 12px; }
+    .pill-green { background: var(--green-soft); color: var(--green); }
+    .pill-gray { background: var(--surface-hover); color: var(--muted); }
+    .pill-purple { background: var(--purple-soft); color: var(--purple); }
+    .pill-amber { background: var(--amber-soft); color: var(--amber); }
+
+    .row-sent { font-size: 12px; color: var(--faint); text-align: right; white-space: nowrap; }
+    .chevron { color: var(--faint); transition: transform .2s; }
+    .is-open .chevron { transform: rotate(180deg); }
+
+    /* Detail */
+    .row-detail { padding: 4px 16px 18px 62px; background: var(--surface-2); }
+    .row-detail[hidden] { display: none; }
+    .detail-bar {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+      padding: 8px 0 14px; font-size: 12px; color: var(--muted);
+    }
+    .detail-bar dl { display: flex; flex-wrap: wrap; gap: 4px 18px; }
+    .detail-bar dt { display: inline; color: var(--faint); }
+    .detail-bar dd { display: inline; color: var(--text-2); margin-left: 4px; word-break: break-word; }
+    .detail-actions { display: flex; gap: 6px; }
+
+    .detail-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+    .card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden;
+    }
+    .card-title {
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+      padding: 10px 14px; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em;
+      border-bottom: 1px solid var(--border);
     }
 
-    .icon-btn:hover {
-      background: var(--surface-elevated);
-      color: var(--text);
-      border-color: var(--border-hover);
+    .events { list-style: none; }
+    .event {
+      display: grid; grid-template-columns: 28px minmax(0, 1fr) auto auto; align-items: center; gap: 12px;
+      padding: 10px 14px; border-bottom: 1px solid var(--border);
     }
+    .event:last-child { border-bottom: 0; }
+    .event-icon { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; background: var(--green-soft); color: var(--green); }
+    .event-icon svg { width: 14px; height: 14px; }
+    .event-icon.is-doc { background: var(--purple-soft); color: var(--purple); }
+    .event-icon.is-muted { background: var(--surface-hover); color: var(--faint); }
+    .event-title { font-size: 13px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .event-meta { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .event-time { font-size: 12px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .event .btn { color: var(--faint); }
+    .event .btn:hover { color: var(--text); }
+    .empty-events { padding: 16px 14px; font-size: 13px; color: var(--muted); }
 
-    .icon-btn.btn-delete:hover {
-      color: var(--rose);
-      background: var(--rose-bg);
-      border-color: rgba(239, 68, 68, 0.3);
+    details.more { border-top: 1px solid var(--border); }
+    details.more > summary {
+      list-style: none; cursor: pointer; padding: 10px 14px; font-size: 12px; color: var(--muted);
+      display: flex; align-items: center; gap: 8px;
     }
+    details.more > summary::-webkit-details-marker { display: none; }
+    details.more > summary:hover { color: var(--text); background: var(--surface-hover); }
+    details.more > summary .chevron { margin-left: auto; width: 14px; height: 14px; }
+    details.more[open] > summary .chevron { transform: rotate(180deg); }
+    details.more .events { border-top: 1px solid var(--border); background: var(--surface-2); }
 
-    .btn-history {
-      font-size: 12px;
-      color: var(--text-muted);
-      background: transparent;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 6px 10px;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      transition: all 0.15s ease;
+    .files { list-style: none; }
+    .file {
+      display: grid; grid-template-columns: 28px minmax(0, 1fr) auto auto; align-items: center; gap: 12px;
+      padding: 10px 14px; border-bottom: 1px solid var(--border);
     }
+    .file:last-child { border-bottom: 0; }
 
-    .btn-history:hover {
-      background: var(--surface-elevated);
-      color: var(--text);
+    /* Standalone documents */
+    .doc-row { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto 92px 16px; }
+    .doc-icon { width: 32px; height: 32px; border-radius: 8px; display: grid; place-items: center; background: var(--purple-soft); color: var(--purple); }
+    .doc-icon svg { width: 15px; height: 15px; }
+
+    /* Empty state & pagination */
+    .empty { text-align: center; padding: 56px 24px; }
+    .empty-icon { width: 48px; height: 48px; border-radius: 14px; display: grid; place-items: center; margin: 0 auto 14px; background: var(--accent-soft); color: var(--accent); }
+    .empty-icon svg { width: 22px; height: 22px; }
+    .empty-title { font-size: 15px; font-weight: 600; }
+    .empty-sub { color: var(--muted); font-size: 13px; margin: 4px auto 0; max-width: 380px; }
+    .empty-sub a { color: var(--accent); font-weight: 500; }
+
+    .pagination {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 10px 14px; border-top: 1px solid var(--border); font-size: 12px; color: var(--muted);
     }
+    .pagination .btn[aria-disabled="true"] { opacity: 0.45; pointer-events: none; }
 
-    .btn-history .arrow {
-      transition: transform 0.2s ease;
-      font-size: 9px;
+    /* ─── Settings drawer ─────────────────────────────────── */
+    .scrim { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.35); opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 40; }
+    .drawer {
+      position: fixed; top: 0; right: 0; bottom: 0; width: min(440px, 100%); z-index: 50;
+      background: var(--surface); border-left: 1px solid var(--border); box-shadow: var(--shadow-lg);
+      transform: translateX(100%); transition: transform .25s ease; display: flex; flex-direction: column;
+      visibility: hidden;
     }
-
-    .btn-history.is-open .arrow {
-      transform: rotate(180deg);
+    body.drawer-open .scrim { opacity: 1; pointer-events: auto; }
+    body.drawer-open .drawer { transform: none; visibility: visible; }
+    .drawer-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); }
+    .drawer-head h2 { font-size: 16px; font-weight: 600; }
+    .drawer-body { overflow-y: auto; padding: 8px 20px 32px; }
+    .setting { padding: 18px 0; border-bottom: 1px solid var(--border); }
+    .setting:last-child { border-bottom: 0; }
+    .setting h3 { font-size: 13px; font-weight: 600; }
+    .setting p { font-size: 12px; color: var(--muted); margin-top: 3px; }
+    .setting-list { list-style: none; margin-top: 12px; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+    .setting-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-bottom: 1px solid var(--border); font-size: 13px; }
+    .setting-item:last-child { border-bottom: 0; }
+    .setting-item .grow { flex: 1; min-width: 0; }
+    .setting-item code { font: 500 12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: var(--text); word-break: break-all; }
+    .setting-item .meta { font-size: 11px; color: var(--muted); }
+    .tag { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; padding: 2px 6px; border-radius: 5px; background: var(--accent-soft); color: var(--accent); }
+    .setting-empty { padding: 12px; font-size: 12px; color: var(--muted); }
+    .you-card { margin-top: 12px; display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--border); }
+    .you-card .grow { flex: 1; min-width: 0; }
+    .inline-form { display: flex; gap: 8px; margin-top: 12px; }
+    .inline-form input {
+      flex: 1; min-width: 0; height: 34px; padding: 0 10px; border-radius: var(--radius-sm);
+      border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font: inherit; font-size: 13px;
     }
+    .inline-form input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); background: var(--surface); }
+    .danger-zone { margin-top: 12px; padding: 12px; border: 1px solid color-mix(in srgb, var(--red) 30%, transparent); border-radius: 10px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 
-    /* Attachment chips inside email card */
-    .attachment-chips {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      padding: 0 20px 12px;
+    /* ─── Dialog & toast ──────────────────────────────────── */
+    dialog.confirm {
+      margin: auto; width: min(400px, calc(100% - 32px)); padding: 0; border: 1px solid var(--border); border-radius: 14px;
+      background: var(--surface); color: var(--text); box-shadow: var(--shadow-lg);
     }
+    dialog.confirm::backdrop { background: rgba(15, 23, 42, 0.4); }
+    .confirm-body { padding: 20px 20px 4px; }
+    .confirm-body h2 { font-size: 16px; font-weight: 600; }
+    .confirm-body p { font-size: 13px; color: var(--muted); margin-top: 6px; }
+    .confirm-actions { display: flex; justify-content: flex-end; gap: 8px; padding: 16px 20px 20px; }
 
-    .attachment-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 12px;
-      background: var(--surface-elevated);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      font-size: 12px;
-      transition: border-color 0.15s ease;
-    }
-
-    .attachment-chip:hover {
-      border-color: var(--border-hover);
-    }
-
-    .attachment-chip-icon {
-      font-size: 14px;
-    }
-
-    .attachment-chip-name {
-      font-weight: 500;
-      color: var(--text);
-      max-width: 180px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .attachment-chip-size {
-      color: var(--text-dim);
-      font-size: 11px;
-    }
-
-    .attachment-chip-views {
-      font-weight: 600;
-      font-size: 11px;
-      padding: 1px 6px;
-      border-radius: 999px;
-    }
-
-    .attachment-chip-views.has-views {
-      color: var(--orange);
-      background: var(--orange-bg);
-    }
-
-    .attachment-chip-views.no-views {
-      color: var(--text-dim);
-      background: rgba(255,255,255,0.05);
-    }
-
-    /* History Timeline */
-    .history-drawer {
-      border-top: 1px solid var(--border);
-      background: #0b0d13;
-      padding: 16px 20px;
-      display: none;
-    }
-
-    .history-drawer.is-open {
-      display: block;
-      animation: fadeIn 0.15s ease;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(-4px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    .history-header {
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--text-dim);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 10px;
-    }
-
-    .timeline-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 10px 14px;
-      border-radius: 6px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      font-size: 13px;
-      margin-bottom: 8px;
-    }
-
-    .timeline-row:last-child {
-      margin-bottom: 0;
-    }
-
-    .timeline-row.timeline-attachment {
-      border-left: 3px solid var(--purple);
-    }
-
-    .timeline-left {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .timeline-client {
-      font-weight: 600;
-      color: var(--text);
-    }
-
-    .timeline-type-tag {
-      font-size: 10px;
-      font-weight: 600;
-      padding: 1px 6px;
-      border-radius: 4px;
-      text-transform: uppercase;
-      letter-spacing: 0.3px;
-    }
-
-    .timeline-type-email {
-      color: var(--green);
-      background: var(--green-bg);
-    }
-
-    .timeline-type-doc {
-      color: var(--purple);
-      background: var(--purple-bg);
-    }
-
-    .timeline-time {
-      color: var(--green);
-      font-size: 12px;
-      font-weight: 500;
-    }
-
-    .timeline-date {
-      color: var(--text-dim);
-      font-size: 12px;
-    }
-
-    /* Empty state */
-    .empty-state {
-      text-align: center;
-      padding: 72px 20px;
-      background: var(--surface);
-      border: 1px dashed var(--border);
-      border-radius: var(--radius);
-      margin: 20px 0;
-    }
-
-    .empty-icon {
-      font-size: 40px;
-      margin-bottom: 12px;
-      opacity: 0.7;
-    }
-
-    .empty-title {
-      font-size: 16px;
-      font-weight: 600;
-      margin-bottom: 6px;
-    }
-
-    .empty-sub {
-      font-size: 13px;
-      color: var(--text-muted);
-      max-width: 400px;
-      margin: 0 auto;
-    }
-
-    /* Standalone attachment cards */
-    .attachment-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      border-left: 3px solid var(--purple);
-      transition: border-color 0.15s ease;
-      overflow: hidden;
-    }
-
-    .attachment-card:hover {
-      border-color: var(--border-hover);
-      border-left-color: var(--purple);
-    }
-
-    .attachment-card-header {
-      padding: 14px 20px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-
-    .attachment-card-info {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      flex: 1;
-      min-width: 200px;
-    }
-
-    .attachment-file-icon {
-      width: 38px;
-      height: 38px;
-      background: var(--purple-bg);
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 18px;
-      flex-shrink: 0;
-    }
-
-    .attachment-file-details {
-      flex: 1;
-      min-width: 0;
-    }
-
-    .attachment-file-name {
-      font-size: 14px;
-      font-weight: 600;
-      color: var(--text);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .attachment-file-meta {
-      font-size: 12px;
-      color: var(--text-muted);
-      display: flex;
-      gap: 8px;
-    }
-
-    /* Floating Toast */
     .toast {
-      position: fixed;
-      bottom: 24px;
-      right: 24px;
-      background: var(--surface-elevated);
-      color: var(--text);
-      border: 1px solid var(--border-hover);
-      padding: 10px 16px;
-      border-radius: 8px;
-      font-size: 13px;
-      font-weight: 500;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-      display: none;
-      align-items: center;
-      gap: 8px;
-      z-index: 9999;
-      animation: slideUp 0.2s ease;
+      position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 20px); z-index: 60;
+      display: flex; align-items: center; gap: 14px; padding: 10px 12px 10px 16px; border-radius: 10px;
+      background: #0f172a; color: #f8fafc; font-size: 13px; box-shadow: var(--shadow-lg);
+      opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s;
     }
+    @media (prefers-color-scheme: dark) { .toast { background: #e8ebf1; color: #0f172a; } }
+    .toast.is-visible { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+    .toast button { color: #a5b4fc; font-weight: 600; font-size: 13px; padding: 4px 6px; border-radius: 6px; }
+    @media (prefers-color-scheme: dark) { .toast button { color: #4f46e5; } }
+    .toast button[hidden] { display: none; }
 
-    @keyframes slideUp {
-      from { transform: translateY(10px); opacity: 0; }
-      to { transform: translateY(0); opacity: 1; }
+    /* ─── Responsive ──────────────────────────────────────── */
+    @media (max-width: 900px) {
+      .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 720px) {
+      .topbar-inner { flex-wrap: wrap; padding: 10px 16px; gap: 10px; }
+      .search { order: 3; flex-basis: 100%; max-width: none; margin-left: 0; }
+      .live-text { display: none; }
+      .page { padding: 20px 16px 48px; }
+      .row-main, .doc-row { grid-template-columns: 32px minmax(0, 1fr) 16px; gap: 12px; padding: 12px; }
+      .row-main .row-status, .row-main .row-sent { grid-column: 2; justify-content: flex-start; text-align: left; }
+      .row-main .chevron { grid-column: 3; grid-row: 1; }
+      .row-detail { padding: 4px 12px 16px; }
+      .event, .file { grid-template-columns: 28px minmax(0, 1fr) auto; }
+      .event .btn { grid-column: 2 / -1; justify-self: start; margin-left: -10px; }
+      .page-head { flex-direction: column; align-items: flex-start; }
+    }
+    @media (max-width: 420px) {
+      .kpis { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+      .kpi { padding: 12px 14px; }
+      .kpi-value { font-size: 22px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { transition: none !important; animation: none !important; }
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <!-- Header -->
-    <header>
-      <div class="brand">
-        <div class="brand-icon">📬</div>
-        <div>
-          <div class="brand-title">
-            MailSeen
-            <span class="live-badge">Live</span>
-          </div>
+  <!-- Icon sprite -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="i-mail" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.06 12.35a1 1 0 0 1 0-.7 10.75 10.75 0 0 1 19.88 0 1 1 0 0 1 0 .7 10.75 10.75 0 0 1-19.88 0"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-logout" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="14" height="14" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></symbol>
+    <symbol id="i-bot" viewBox="0 0 24 24"><path d="M12 8V4H8"/><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
+    <symbol id="i-wifi" viewBox="0 0 24 24"><path d="M12 20h.01"/><path d="M2 8.82a15 15 0 0 1 20 0"/><path d="M5 12.86a10 10 0 0 1 14 0"/><path d="M8.5 16.43a5 5 0 0 1 7 0"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></symbol>
+  </svg>
+
+  {% macro icon(name) %}<svg class="icon" aria-hidden="true"><use href="#i-{{ name }}"/></svg>{% endmacro %}
+
+  {% macro event_row(ev, mode) %}
+    {% set is_view = ev.event == 'view' %}
+    <li class="event">
+      <span class="event-icon {% if mode != 'counted' %}is-muted{% elif is_view %}is-doc{% endif %}">
+        {{ icon('bot' if mode == 'automated' else ('user' if mode == 'self' else ('file' if is_view else 'eye'))) }}
+      </span>
+      <div style="min-width: 0;">
+        <div class="event-title">
+          {% if is_view %}Viewed {{ ev.filename }}{% else %}Opened the email{% endif %}
+        </div>
+        <div class="event-meta">
+          {% if mode == 'automated' %}{{ ev.open_kind|kind_label }}{% else %}{{ ev.client_name }}{% endif %}
+          {% if ev.open_kind != 'proxy' and ev.ip|network_label %} · {{ ev.ip|network_label }}{% endif %}
         </div>
       </div>
+      <time class="event-time" data-time="{{ ev.at }}" data-format="datetime"></time>
+      {% if mode == 'counted' %}
+        <button type="button" class="btn btn-sm btn-ghost" data-action="mark" data-type="{{ ev.event }}" data-id="{{ ev.id }}" data-self="1"
+                title="Hide this open and stop counting it">This was me</button>
+      {% elif mode == 'self' %}
+        <button type="button" class="btn btn-sm btn-ghost" data-action="mark" data-type="{{ ev.event }}" data-id="{{ ev.id }}" data-self="0"
+                title="Count this as a recipient open">Not me</button>
+      {% else %}<span></span>{% endif %}
+    </li>
+  {% endmacro %}
 
-      <div class="header-actions">
-        <button type="button" class="btn" id="btnRefresh">
-          🔄 <span id="refreshLabel">Refresh</span>
-        </button>
-        {% if emails or standalone_attachments %}
-        <button type="button" class="btn btn-danger" onclick="clearAllEmails()">
-          🗑️ Clear All
-        </button>
+  {% macro hidden_groups(self_events, automated_events, key) %}
+    {% if self_events %}
+    <details class="more" data-key="self-{{ key }}">
+      <summary>{{ icon('user') }} {{ self_events|length }} {{ 'open' if self_events|length == 1 else 'opens' }} by you, hidden {{ icon('chevron') }}</summary>
+      <ul class="events">{% for ev in self_events %}{{ event_row(ev, 'self') }}{% endfor %}</ul>
+    </details>
+    {% endif %}
+    {% if automated_events %}
+    <details class="more" data-key="bot-{{ key }}">
+      <summary>{{ icon('bot') }} {{ automated_events|length }} automated {{ 'fetch' if automated_events|length == 1 else 'fetches' }}, not counted {{ icon('chevron') }}</summary>
+      <ul class="events">{% for ev in automated_events %}{{ event_row(ev, 'automated') }}{% endfor %}</ul>
+    </details>
+    {% endif %}
+  {% endmacro %}
+
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="{{ url_for('dashboard') }}">
+        <span class="brand-mark"><svg class="icon" aria-hidden="true"><use href="#i-eye"/></svg></span>
+        <span class="brand-name">MailSeen</span>
+      </a>
+
+      <form class="search" method="get" action="{{ url_for('dashboard') }}" role="search">
+        {{ icon('search') }}
+        <label class="sr-only" for="searchInput">Search emails</label>
+        <input type="search" id="searchInput" name="q" value="{{ filters.q }}" placeholder="Search subject or recipient" autocomplete="off" />
+        {% if filters.status != 'all' %}<input type="hidden" name="status" value="{{ filters.status }}" />{% endif %}
+        {% if filters.q %}
+          <a class="search-clear" href="{{ url_for('dashboard', status=filters.status if filters.status != 'all' else None) }}">Clear</a>
+        {% else %}
+          <kbd>/</kbd>
         {% endif %}
-        <form method="post" action="/logout" style="display: contents;">
-          <input type="hidden" name="csrf_token" value="{{ session.csrf_token }}" />
-          <button type="submit" class="btn">Log out</button>
-        </form>
-      </div>
-    </header>
-
-    <!-- Stats -->
-    <div class="stats-row">
-      <div class="stat-card">
-        <div class="stat-label">Tracked Emails</div>
-        <div class="stat-number">{{ stats.total_emails }}</div>
-        <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">
-          {{ stats.unopened_emails }} waiting for open
-        </div>
-      </div>
-
-      <div class="stat-card">
-        <div class="stat-label">Open Rate</div>
-        <div class="stat-number">
-          {{ stats.open_rate }}%
-          <span style="font-size: 13px; color: var(--green); font-weight: 500;">({{ stats.opened_emails }}/{{ stats.total_emails }})</span>
-        </div>
-        <div class="progress-bar">
-          <div class="progress-fill" data-rate="{{ stats.open_rate }}"></div>
-        </div>
-      </div>
-
-      <div class="stat-card">
-        <div class="stat-label">Recipient Opens</div>
-        <div class="stat-number" style="color: var(--green);">
-          {{ stats.total_opens }}
-        </div>
-        <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">
-          Genuine recipient views
-        </div>
-      </div>
-
-      <div class="stat-card">
-        <div class="stat-label">Document Views</div>
-        <div class="stat-number" style="color: var(--purple);">
-          {{ stats.total_attachment_views }}
-        </div>
-        <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">
-          {{ stats.total_attachments }} tracked document{{ 's' if stats.total_attachments != 1 }}
-        </div>
-      </div>
-    </div>
-
-    <!-- Search & Filter Controls -->
-    <div class="controls-row">
-      <form class="search-wrap" method="get" action="{{ url_for('dashboard') }}">
-        <span class="search-icon">🔍</span>
-        <input type="search" id="searchInput" name="q" value="{{ filters.q }}" class="search-input" placeholder="Search by subject, recipient... (Enter)" />
-        <input type="hidden" name="status" value="{{ filters.status }}" />
       </form>
 
-      <div class="filter-tabs">
-        {% for key, label, count in [('all', 'All', stats.total_emails), ('opened', 'Opened', stats.opened_emails), ('waiting', 'Waiting', stats.unopened_emails)] %}
-        <a class="tab-btn {% if filters.status == key %}is-active{% endif %}"
-           href="{{ url_for('dashboard', status=key, q=filters.q or None) }}">{{ label }} ({{ count }})</a>
-        {% endfor %}
+      <div class="topbar-actions">
+        <span class="live" id="liveStatus" title="The dashboard updates automatically">
+          <span class="live-dot"></span><span class="live-text" id="liveText">Live</span>
+        </span>
+        <button type="button" class="icon-btn" id="btnRefresh" title="Refresh now" aria-label="Refresh now">{{ icon('refresh') }}</button>
+        <button type="button" class="icon-btn" data-action="open-settings" title="Settings" aria-label="Settings">{{ icon('settings') }}</button>
+        <form method="post" action="/logout" style="display: contents;">
+          <input type="hidden" name="csrf_token" value="{{ session.csrf_token }}" />
+          <button type="submit" class="icon-btn" title="Log out" aria-label="Log out">{{ icon('logout') }}</button>
+        </form>
+      </div>
+    </div>
+  </header>
+
+  <main class="page" id="live">
+    <div class="page-head">
+      <div>
+        <h1 class="page-title">Tracked emails</h1>
+        <p class="page-sub">Opens by your recipients, live. Your own opens and automated fetches are filtered out.</p>
       </div>
     </div>
 
-    <!-- Email List -->
-    {% if not emails and (filters.q or filters.status != 'all') %}
-    <div class="empty-state">
-      <div class="empty-icon">🔍</div>
-      <div class="empty-title">No emails match</div>
-      <div class="empty-sub"><a href="{{ url_for('dashboard') }}" style="color: var(--primary-hover);">Clear filters</a></div>
+    {% if is_localhost %}
+    <div class="notice" role="note">
+      {{ icon('alert') }}
+      <div><strong>Running on localhost.</strong> Recipients can't reach this address, so their opens won't be recorded. Use your deployed URL (or a tunnel) in the extension to track real emails.</div>
     </div>
-    {% elif not emails and not standalone_attachments %}
-    <div class="empty-state">
-      <div class="empty-icon">📬</div>
-      <div class="empty-title">No tracked emails yet</div>
-      <div class="empty-sub">
-        Send an email from Gmail with <strong>👁️ Tracked</strong> enabled. When the other person opens it, it will appear here in real time.
-      </div>
-    </div>
-    {% else %}
-    <div class="email-list" id="emailList">
-      {% for e in emails %}
-      <div class="email-card"
-           id="card-{{ e.id }}"
-           data-label="{{ e.label|lower }}"
-           data-status="{% if e.open_count > 0 %}opened{% else %}waiting{% endif %}">
-        
-        <div class="email-header">
-          <div class="email-details">
-            <div class="email-title-line">
-              <span class="email-subject">{{ e.subject or e.label }}</span>
-              {% if e.recipients %}
-                <span class="email-recipient-tag">{{ e.recipients }}</span>
-              {% endif %}
-            </div>
-
-            <div class="email-meta-line">
-              <span>Sent: <strong class="format-datetime" data-time="{{ e.created_at }}"></strong></span>
-              {% if e.last_opened_at %}
-                <span>·</span>
-                <span style="color: var(--green); font-weight: 500;">
-                  Last seen: <span class="format-datetime" data-time="{{ e.last_opened_at }}"></span>
-                </span>
-              {% endif %}
-            </div>
-          </div>
-
-          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-            <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
-              {% if e.open_count > 0 %}
-                <span class="badge-opened">
-                  ✅ Opened {{ e.open_count }}x
-                  <span style="font-weight: 400; opacity: 0.85; margin-left: 2px;">
-                    (<span class="format-time-only" data-time="{{ e.last_opened_at }}"></span>)
-                  </span>
-                </span>
-              {% else %}
-                <span class="badge-waiting">⏳ Waiting for open</span>
-              {% endif %}
-
-              {% if e.automated_open_count > 0 %}
-                <span class="badge-waiting" title="Apple Mail Privacy Protection prefetches and security scanners load images without anyone reading the email, so they don't count as opens.">🤖 {{ e.automated_open_count }} automated</span>
-              {% endif %}
-
-              {% if e.attachment_count > 0 %}
-                {% if e.attachment_views > 0 %}
-                  <span class="badge-attachment badge-attachment-viewed">📄 {{ e.attachment_views }} view{{ 's' if e.attachment_views != 1 }}</span>
-                {% else %}
-                  <span class="badge-attachment">📄 {{ e.attachment_count }} doc{{ 's' if e.attachment_count != 1 }}</span>
-                {% endif %}
-              {% endif %}
-            </div>
-
-            <div class="card-actions">
-              <button type="button" class="icon-btn" onclick="copyPixelUrl('{{ e.id }}')" title="Copy pixel link">📋</button>
-              <button type="button" class="icon-btn btn-delete" onclick="deleteEmail('{{ e.id }}')" title="Delete email">🗑️</button>
-              
-              {% if e.opens or e.attachments %}
-              <button type="button" class="btn-history" onclick="toggleHistory('{{ e.id }}', this)">
-                History ({{ e.opens|length + e.attachments|sum(attribute='view_count') }}) <span class="arrow">▼</span>
-              </button>
-              {% endif %}
-            </div>
-          </div>
-        </div>
-
-        {% if e.attachments %}
-        <div class="attachment-chips">
-          {% for att in e.attachments %}
-          <div class="attachment-chip">
-            <span class="attachment-chip-icon">📄</span>
-            <span class="attachment-chip-name" title="{{ att.filename }}">{{ att.filename }}</span>
-            <span class="attachment-chip-size">{{ att.file_size_display }}</span>
-            {% if att.view_count > 0 %}
-              <span class="attachment-chip-views has-views">👁 {{ att.view_count }}</span>
-            {% else %}
-              <span class="attachment-chip-views no-views">—</span>
-            {% endif %}
-          </div>
-          {% endfor %}
-        </div>
-        {% endif %}
-
-        {% if e.opens or e.attachments %}
-        <div id="history-{{ e.id }}" class="history-drawer">
-          {% if e.opens %}
-          <div class="history-header">Email Open Activity</div>
-          <div>
-            {% for o in e.opens %}
-            <div class="timeline-row">
-              <div class="timeline-left">
-                <span style="font-size: 15px;">👁️</span>
-                <span class="timeline-client">{{ o.client_name }}</span>
-                <span class="timeline-type-tag timeline-type-email">Email</span>
-              </div>
-              <div>
-                <span class="timeline-time format-time-only" data-time="{{ o.opened_at }}"></span>
-                <span class="timeline-date format-date-only" data-time="{{ o.opened_at }}" style="margin-left: 6px;"></span>
-              </div>
-            </div>
-            {% endfor %}
-          </div>
-          {% endif %}
-
-          {% for att in e.attachments %}
-            {% if att.views %}
-            <div class="history-header" style="margin-top: {% if e.opens %}16px{% else %}0{% endif %};">📄 {{ att.filename }} — Views</div>
-            <div>
-              {% for v in att.views %}
-              <div class="timeline-row timeline-attachment">
-                <div class="timeline-left">
-                  <span style="font-size: 15px;">📄</span>
-                  <span class="timeline-client">{{ v.client_name }}</span>
-                  <span class="timeline-type-tag timeline-type-doc">Doc</span>
-                </div>
-                <div>
-                  <span class="timeline-time format-time-only" data-time="{{ v.viewed_at }}"></span>
-                  <span class="timeline-date format-date-only" data-time="{{ v.viewed_at }}" style="margin-left: 6px;"></span>
-                </div>
-              </div>
-              {% endfor %}
-            </div>
-            {% endif %}
-          {% endfor %}
-        </div>
-        {% endif %}
-      </div>
-      {% endfor %}
-    </div>
-
-    {% if pagination.page_count > 1 %}
-    <nav class="pagination" aria-label="Pages">
-      {% if pagination.page > 1 %}
-      <a class="btn" href="{{ url_for('dashboard', page=pagination.page - 1, status=filters.status, q=filters.q or None) }}">← Newer</a>
-      {% endif %}
-      <span class="pagination-label">Page {{ pagination.page }} of {{ pagination.page_count }} · {{ pagination.total }} emails</span>
-      {% if pagination.page < pagination.page_count %}
-      <a class="btn" href="{{ url_for('dashboard', page=pagination.page + 1, status=filters.status, q=filters.q or None) }}">Older →</a>
-      {% endif %}
-    </nav>
     {% endif %}
+
+    <section class="kpis" aria-label="Summary">
+      <div class="kpi">
+        <div class="kpi-label">{{ icon('mail') }} Emails tracked</div>
+        <div class="kpi-value">{{ stats.total_emails }}</div>
+        <div class="kpi-foot">{{ stats.unopened_emails }} not opened yet</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">{{ icon('check') }} Open rate</div>
+        <div class="kpi-value">{{ stats.open_rate }}%<small>{{ stats.opened_emails }} of {{ stats.total_emails }}</small></div>
+        <div class="meter"><span style="width: {{ stats.open_rate }}%"></span></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">{{ icon('eye') }} Recipient opens</div>
+        <div class="kpi-value">{{ stats.total_opens }}</div>
+        <div class="kpi-foot">Not counted: {{ stats.total_self_opens }} by you · {{ stats.total_automated_opens }} automated</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">{{ icon('file') }} Document views</div>
+        <div class="kpi-value">{{ stats.total_attachment_views }}</div>
+        <div class="kpi-foot">{{ stats.total_attachments }} document{{ 's' if stats.total_attachments != 1 }} shared</div>
+      </div>
+    </section>
+
+    <section class="panel" aria-label="Emails">
+      <div class="panel-head">
+        <nav class="tabs" aria-label="Filter emails">
+          {% for key, label, count in [('all', 'All', stats.total_emails), ('opened', 'Opened', stats.opened_emails), ('waiting', 'Not opened', stats.unopened_emails)] %}
+          <a class="tab {% if filters.status == key %}is-active{% endif %}" data-tab="{{ key }}" data-count="{{ count }}"
+             {% if filters.status == key %}aria-current="page"{% endif %}
+             href="{{ url_for('dashboard', status=key if key != 'all' else None, q=filters.q or None) }}">{{ label }} <span class="tab-count">{{ count }}</span></a>
+          {% endfor %}
+        </nav>
+        <span class="hint">{{ icon('user') }} Your own opens are hidden automatically. <button type="button" data-action="open-settings">How?</button></span>
+      </div>
+
+      {% if not emails and (filters.q or filters.status != 'all') %}
+        <div class="empty">
+          <div class="empty-icon">{{ icon('search') }}</div>
+          <div class="empty-title">No emails match</div>
+          <div class="empty-sub">Try a different search, or <a href="{{ url_for('dashboard') }}">clear filters</a>.</div>
+        </div>
+      {% elif not emails %}
+        <div class="empty">
+          <div class="empty-icon">{{ icon('mail') }}</div>
+          <div class="empty-title">No tracked emails yet</div>
+          <div class="empty-sub">Send an email from Gmail with the extension's <strong>Tracked</strong> toggle on. You'll see it here the moment it's opened.</div>
+        </div>
+      {% else %}
+        <ul class="email-list">
+          {% for e in emails %}
+          <li class="email-card" id="card-{{ e.id }}" data-id="{{ e.id }}" data-open-count="{{ e.open_count }}">
+            <button type="button" class="row-main" aria-expanded="false" aria-controls="detail-{{ e.id }}">
+              <span class="status-icon {{ 'status-opened' if e.open_count else 'status-waiting' }}"
+                    title="{{ 'Opened' if e.open_count else 'Not opened yet' }}">{{ icon('check' if e.open_count else 'clock') }}</span>
+              <span class="row-text">
+                {% if e.subject %}<span class="email-subject">{{ e.subject }}</span>{% else %}<span class="email-subject no-subject">(no subject)</span>{% endif %}
+                {% if e.recipients %}<span class="email-recipient-tag">{{ e.recipients }}</span>{% endif %}
+              </span>
+              <span class="row-status">
+                {% if e.open_count %}
+                  <span class="pill pill-green">{{ icon('eye') }} Opened {{ e.open_count }}×</span>
+                  <span class="row-last">last <time data-time="{{ e.last_opened_at }}" data-format="relative"></time></span>
+                {% else %}
+                  <span class="pill pill-gray">Not opened</span>
+                {% endif %}
+                {% if e.attachment_count %}
+                  <span class="pill pill-purple" title="{{ e.attachment_views }} document view{{ 's' if e.attachment_views != 1 }}">{{ icon('file') }} {{ e.attachment_views }}/{{ e.attachment_count }}</span>
+                {% endif %}
+                {% if e.automated_open_count %}
+                  <span class="pill pill-amber" title="Apple Mail privacy prefetches and security scanners load images without anyone reading the email, so they aren't counted.">{{ icon('bot') }} {{ e.automated_open_count }} automated</span>
+                {% endif %}
+              </span>
+              <time class="row-sent" data-time="{{ e.created_at }}" data-format="short" data-label="Sent"></time>
+              <svg class="icon chevron" aria-hidden="true"><use href="#i-chevron"/></svg>
+            </button>
+
+            <div class="row-detail" id="detail-{{ e.id }}" hidden>
+              <div class="detail-bar">
+                <dl>
+                  <div><dt>Sent</dt><dd><time data-time="{{ e.created_at }}" data-format="full"></time></dd></div>
+                  {% if e.recipients %}<div><dt>To</dt><dd>{{ e.recipients }}</dd></div>{% endif %}
+                </dl>
+                <div class="detail-actions">
+                  <button type="button" class="btn btn-sm" data-action="copy" data-value="{{ host_url }}/track/{{ e.id }}.png" title="Copy the tracking pixel URL">{{ icon('copy') }} Pixel URL</button>
+                  <button type="button" class="btn btn-sm btn-danger" data-action="delete-email" data-id="{{ e.id }}">{{ icon('trash') }} Delete</button>
+                </div>
+              </div>
+
+              <div class="detail-grid">
+                <div class="card">
+                  <div class="card-title"><span>Activity</span><span>{{ e.activity|length }}</span></div>
+                  {% if e.activity %}
+                    <ul class="events">{% for ev in e.activity %}{{ event_row(ev, 'counted') }}{% endfor %}</ul>
+                  {% else %}
+                    <div class="empty-events">No opens by recipients yet.</div>
+                  {% endif %}
+                  {{ hidden_groups(e.self_activity, e.automated_activity, e.id) }}
+                </div>
+
+                {% if e.attachments %}
+                <div class="card">
+                  <div class="card-title"><span>Documents</span><span>{{ e.attachment_count }}</span></div>
+                  <ul class="files">
+                    {% for att in e.attachments %}
+                    <li class="file">
+                      <span class="event-icon is-doc">{{ icon('file') }}</span>
+                      <div style="min-width: 0;">
+                        <div class="event-title" title="{{ att.filename }}">{{ att.filename }}</div>
+                        <div class="event-meta">{{ att.file_size_display }}</div>
+                      </div>
+                      <span class="pill {{ 'pill-purple' if att.view_count else 'pill-gray' }}">{{ att.view_count }} view{{ 's' if att.view_count != 1 }}</span>
+                      <button type="button" class="icon-btn" data-action="copy" data-value="{{ host_url }}/view/{{ att.id }}" title="Copy link" aria-label="Copy link">{{ icon('link') }}</button>
+                    </li>
+                    {% endfor %}
+                  </ul>
+                </div>
+                {% endif %}
+              </div>
+            </div>
+          </li>
+          {% endfor %}
+        </ul>
+
+        {% if pagination.page_count > 1 %}
+        <nav class="pagination" aria-label="Pages">
+          <a class="btn btn-sm" {% if pagination.page <= 1 %}aria-disabled="true"{% endif %}
+             href="{{ url_for('dashboard', page=pagination.page - 1, status=filters.status if filters.status != 'all' else None, q=filters.q or None) }}">Newer</a>
+          <span>Page {{ pagination.page }} of {{ pagination.page_count }} · {{ pagination.total }} emails</span>
+          <a class="btn btn-sm" {% if pagination.page >= pagination.page_count %}aria-disabled="true"{% endif %}
+             href="{{ url_for('dashboard', page=pagination.page + 1, status=filters.status if filters.status != 'all' else None, q=filters.q or None) }}">Older</a>
+        </nav>
+        {% endif %}
+      {% endif %}
+    </section>
 
     {% if standalone_attachments %}
-    <div class="section-heading">
-      <h2>📎 Tracked Documents</h2>
-      <span class="count-badge">{{ standalone_attachments|length }}</span>
+    <h2 class="section-title">Shared documents <span>not attached to a tracked email</span></h2>
+    <section class="panel" aria-label="Shared documents">
+      <ul class="email-list">
+        {% for att in standalone_attachments %}
+        <li class="doc-card" id="att-card-{{ att.id }}" data-id="att-{{ att.id }}">
+          <button type="button" class="row-main doc-row" aria-expanded="false" aria-controls="detail-att-{{ att.id }}">
+            <span class="doc-icon">{{ icon('file') }}</span>
+            <span class="row-text">
+              <span class="email-subject" title="{{ att.filename }}">{{ att.filename }}</span>
+              <span class="email-recipient-tag">{{ att.file_size_display }}</span>
+            </span>
+            <span class="row-status">
+              {% if att.view_count %}
+                <span class="pill pill-purple">{{ icon('eye') }} Viewed {{ att.view_count }}×</span>
+                <span class="row-last">last <time data-time="{{ att.last_viewed_at }}" data-format="relative"></time></span>
+              {% else %}
+                <span class="pill pill-gray">No views yet</span>
+              {% endif %}
+            </span>
+            <time class="row-sent" data-time="{{ att.created_at }}" data-format="short" data-label="Uploaded"></time>
+            <svg class="icon chevron" aria-hidden="true"><use href="#i-chevron"/></svg>
+          </button>
+          <div class="row-detail" id="detail-att-{{ att.id }}" hidden>
+            <div class="detail-bar">
+              <dl><div><dt>Uploaded</dt><dd><time data-time="{{ att.created_at }}" data-format="full"></time></dd></div></dl>
+              <div class="detail-actions">
+                <button type="button" class="btn btn-sm" data-action="copy" data-value="{{ host_url }}/view/{{ att.id }}">{{ icon('link') }} Copy link</button>
+                <button type="button" class="btn btn-sm btn-danger" data-action="delete-attachment" data-id="{{ att.id }}">{{ icon('trash') }} Delete</button>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-title"><span>Views</span><span>{{ att.view_count }}</span></div>
+              {% if att.activity %}
+                <ul class="events">{% for ev in att.activity %}{{ event_row(ev, 'counted') }}{% endfor %}</ul>
+              {% else %}
+                <div class="empty-events">Nobody has opened this document yet.</div>
+              {% endif %}
+              {{ hidden_groups(att.self_activity, att.automated_activity, 'att-' ~ att.id) }}
+            </div>
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+    </section>
+    {% endif %}
+  </main>
+
+  <!-- Settings drawer -->
+  <div class="scrim" data-action="close-settings"></div>
+  <aside class="drawer" id="settings" aria-label="Settings" aria-hidden="true">
+    <div class="drawer-head">
+      <h2>Settings</h2>
+      <button type="button" class="icon-btn" data-action="close-settings" aria-label="Close settings">{{ icon('x') }}</button>
     </div>
-    <div class="email-list">
-      {% for att in standalone_attachments %}
-      <div class="attachment-card" id="att-card-{{ att.id }}">
-        <div class="attachment-card-header">
-          <div class="attachment-card-info">
-            <div class="attachment-file-icon">📄</div>
-            <div class="attachment-file-details">
-              <div class="attachment-file-name" title="{{ att.filename }}">{{ att.filename }}</div>
-              <div class="attachment-file-meta">
-                <span>{{ att.file_size_display }}</span>
-                <span>·</span>
-                <span class="format-datetime" data-time="{{ att.created_at }}"></span>
-              </div>
+    <div class="drawer-body" id="settingsBody">
+      <section class="setting">
+        <h3>How your own opens are hidden</h3>
+        <p>Opens are counted as yours, not the recipient's, when they come from:</p>
+        <p>• a network where you use the extension or this dashboard (learned automatically, kept {{ self_device_days }} days),<br />
+           • your own Gmail tab: the extension hides the pixel in your Sent mail,<br />
+           • an IP on your "always ignore" list below.</p>
+        <p>Missed one? Expand an email and click <strong>This was me</strong> on the open.</p>
+      </section>
+
+      <section class="setting">
+        <h3>This device</h3>
+        {% set this_known = devices|selectattr('network', 'equalto', client_network)|list %}
+        <div class="you-card">
+          <span class="event-icon {{ '' if this_known or is_client_ignored else 'is-muted' }}">{{ icon('wifi') }}</span>
+          <div class="grow">
+            <div><code>{{ client_ip }}</code></div>
+            <div class="meta" style="font-size: 12px; color: var(--muted);">
+              {% if this_known or is_client_ignored %}Recognised as you. Opens from this network are hidden.{% else %}Not recognised yet.{% endif %}
             </div>
           </div>
-
-          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-            {% if att.view_count > 0 %}
-              <span class="badge-attachment badge-attachment-viewed">
-                👁 Viewed {{ att.view_count }}x
-                <span style="font-weight: 400; opacity: 0.85;">
-                  (<span class="format-time-only" data-time="{{ att.last_viewed_at }}"></span>)
-                </span>
-              </span>
-            {% else %}
-              <span class="badge-waiting" style="font-size: 11px;">⏳ No views yet</span>
-            {% endif %}
-
-            <button type="button" class="icon-btn" onclick="copyAttachmentUrl('{{ att.id }}')" title="Copy view link">📋</button>
-            <button type="button" class="icon-btn btn-delete" onclick="deleteAttachment('{{ att.id }}')" title="Delete attachment">🗑️</button>
-
-            {% if att.views %}
-            <button type="button" class="btn-history" onclick="toggleHistory('att-{{ att.id }}', this)">
-              Views ({{ att.views|length }}) <span class="arrow">▼</span>
-            </button>
-            {% endif %}
-          </div>
         </div>
+      </section>
 
-        {% if att.views %}
-        <div id="history-att-{{ att.id }}" class="history-drawer">
-          <div class="history-header">Document View Activity</div>
-          <div>
-            {% for v in att.views %}
-            <div class="timeline-row timeline-attachment">
-              <div class="timeline-left">
-                <span style="font-size: 15px;">📄</span>
-                <span class="timeline-client">{{ v.client_name }}</span>
-              </div>
-              <div>
-                <span class="timeline-time format-time-only" data-time="{{ v.viewed_at }}"></span>
-                <span class="timeline-date format-date-only" data-time="{{ v.viewed_at }}" style="margin-left: 6px;"></span>
-              </div>
+      <section class="setting">
+        <h3>Your networks</h3>
+        <p>Remembered automatically. Forget one if someone else now uses it (for example, a café or office Wi-Fi you shared with a recipient).</p>
+        <ul class="setting-list">
+          {% for d in devices %}
+          <li class="setting-item">
+            <div class="grow">
+              <div><code>{{ d.network }}</code>{% if d.network == client_network %} <span class="tag">This device</span>{% endif %}</div>
+              <div class="meta">{{ d.client_name }} · seen <time data-time="{{ d.last_seen }}" data-format="relative"></time></div>
             </div>
-            {% endfor %}
-          </div>
+            <button type="button" class="btn btn-sm btn-ghost" data-action="forget-device" data-network="{{ d.network }}">Forget</button>
+          </li>
+          {% else %}
+          <li class="setting-empty">No networks yet. They're added when you use the extension or this dashboard.</li>
+          {% endfor %}
+        </ul>
+      </section>
+
+      <section class="setting">
+        <h3>Always ignore</h3>
+        <p>Opens from these IP addresses are always treated as yours.</p>
+        <ul class="setting-list">
+          {% for ip in env_ips %}
+          <li class="setting-item"><div class="grow"><code>{{ ip }}</code><div class="meta">Set by IGNORED_IPS on the server</div></div></li>
+          {% endfor %}
+          {% for row in ignored_ips %}
+          <li class="setting-item">
+            <div class="grow"><code>{{ row.ip }}</code>{% if row.label %}<div class="meta">{{ row.label }}</div>{% endif %}</div>
+            <button type="button" class="btn btn-sm btn-ghost" data-action="unignore-ip" data-ip="{{ row.ip }}">Remove</button>
+          </li>
+          {% endfor %}
+          {% if not env_ips and not ignored_ips %}<li class="setting-empty">No addresses.</li>{% endif %}
+        </ul>
+        <form class="inline-form" id="ignoreForm">
+          <label class="sr-only" for="ignoreIp">IP address to ignore</label>
+          <input id="ignoreIp" name="ip" placeholder="e.g. 203.0.113.7" required pattern="[0-9a-fA-F:.]+" autocomplete="off" />
+          <button type="submit" class="btn btn-sm">Add</button>
+          {% if not is_client_ignored %}
+          <button type="button" class="btn btn-sm" data-action="ignore-current" data-ip="{{ client_ip }}">Add mine</button>
+          {% endif %}
+        </form>
+      </section>
+
+      <section class="setting">
+        <h3>Data</h3>
+        <p>Tracking data is deleted automatically after the server's retention period.</p>
+        <div class="danger-zone">
+          <span style="font-size: 13px;">Delete every email, document and open</span>
+          <button type="button" class="btn btn-sm btn-danger" data-action="clear-all">Delete all</button>
         </div>
-        {% endif %}
+      </section>
+    </div>
+  </aside>
+
+  <dialog class="confirm" id="confirmDialog">
+    <form method="dialog">
+      <div class="confirm-body">
+        <h2 id="confirmTitle">Are you sure?</h2>
+        <p id="confirmMessage"></p>
       </div>
-      {% endfor %}
-    </div>
-    {% endif %}
+      <div class="confirm-actions">
+        <button class="btn" value="cancel">Cancel</button>
+        <button class="btn btn-danger-solid" value="ok" id="confirmOk">Delete</button>
+      </div>
+    </form>
+  </dialog>
 
-    {% endif %}
-  </div>
-
-  <!-- Toast Notification -->
-  <div id="toast" class="toast">
-    <span id="toastIcon">✓</span>
-    <span id="toastMsg">Action completed</span>
+  <div class="toast" id="toast" role="status" aria-live="polite">
+    <span id="toastMsg"></span>
+    <button type="button" id="toastAction" hidden>Undo</button>
   </div>
 
   <script>
-    // 12-Hour AM/PM Time Formatters
-    function formatTime12h(isoStr) {
-      if (!isoStr) return "";
-      const d = new Date(isoStr.endsWith("Z") ? isoStr : isoStr + "Z");
-      return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
-    }
+    (function () {
+      const REFRESH_SECONDS = 20;
+      const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]').content;
+      const expanded = new Set();
+      const openDetails = new Set();
+      let lastUpdated = Date.now();
 
-    function formatDateOnly(isoStr) {
-      if (!isoStr) return "";
-      const d = new Date(isoStr.endsWith("Z") ? isoStr : isoStr + "Z");
-      return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
-    }
-
-    function formatDateTime12h(isoStr) {
-      if (!isoStr) return "";
-      const time = formatTime12h(isoStr);
-      const date = formatDateOnly(isoStr);
-      return `${date}, ${time}`;
-    }
-
-    // Format all timestamps on the page into local 12-hour AM/PM format
-    function renderAllTimes() {
-      document.querySelectorAll(".format-datetime").forEach(el => {
-        const raw = el.getAttribute("data-time");
-        if (raw) el.textContent = formatDateTime12h(raw);
-      });
-
-      document.querySelectorAll(".format-time-only").forEach(el => {
-        const raw = el.getAttribute("data-time");
-        if (raw) el.textContent = formatTime12h(raw);
-      });
-
-      document.querySelectorAll(".format-date-only").forEach(el => {
-        const raw = el.getAttribute("data-time");
-        if (raw) el.textContent = `(${formatDateOnly(raw)})`;
-      });
-    }
-
-    function renderProgressBar() {
-      document.querySelectorAll(".progress-fill").forEach(el => {
-        const rate = el.getAttribute("data-rate");
-        if (rate !== null) el.style.width = rate + "%";
-      });
-    }
-
-    renderAllTimes();
-    renderProgressBar();
-
-    // Same-origin API calls carry the session's CSRF token; an expired session goes back to login.
-    const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]').content;
-    async function apiFetch(url, options = {}) {
-      const headers = { ...(options.headers || {}), 'X-CSRF-Token': CSRF_TOKEN };
-      const res = await fetch(url, { ...options, headers, credentials: 'same-origin' });
-      if (res.status === 401) {
-        location.href = '/login?next=/dashboard';
-        throw new Error('Session expired');
+      // ─── Time formatting (server stores naive UTC) ─────────────
+      const parse = (iso) => new Date(/Z|[+-]\d\d:\d\d$/.test(iso) ? iso : iso + "Z");
+      const sameDay = (a, b) => a.toDateString() === b.toDateString();
+      function clock(d) { return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }); }
+      function shortDate(d) {
+        const now = new Date();
+        const opts = { month: "short", day: "numeric" };
+        if (d.getFullYear() !== now.getFullYear()) opts.year = "numeric";
+        return d.toLocaleDateString([], opts);
       }
-      return res;
-    }
+      function full(d) { return `${d.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric", year: "numeric" })}, ${clock(d)}`; }
+      function relative(d) {
+        const s = Math.round((Date.now() - d.getTime()) / 1000);
+        if (s < 45) return "just now";
+        if (s < 3600) return `${Math.round(s / 60)}m ago`;
+        if (s < 86400) return `${Math.round(s / 3600)}h ago`;
+        const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
+        if (sameDay(d, yesterday)) return "yesterday";
+        if (s < 7 * 86400) return `${Math.round(s / 86400)}d ago`;
+        return shortDate(d);
+      }
+      function short(d) { return sameDay(d, new Date()) ? clock(d) : shortDate(d); }
+      function datetime(d) { return sameDay(d, new Date()) ? `Today, ${clock(d)}` : `${shortDate(d)}, ${clock(d)}`; }
 
-    // Toast
-    let toastTimer = null;
-    function showToast(msg, icon = "✓") {
+      function renderTimes(root = document) {
+        root.querySelectorAll("time[data-time]").forEach((el) => {
+          const raw = el.dataset.time;
+          if (!raw || raw === "None") return;
+          const d = parse(raw);
+          if (isNaN(d)) return;
+          const fmt = { relative, short, full, datetime }[el.dataset.format] || datetime;
+          el.textContent = fmt(d);
+          el.dateTime = d.toISOString();
+          if (el.dataset.format !== "full") el.title = (el.dataset.label ? el.dataset.label + " " : "") + full(d);
+        });
+      }
+
+      // ─── Toast & confirm ───────────────────────────────────────
       const toast = document.getElementById("toast");
-      document.getElementById("toastMsg").textContent = msg;
-      document.getElementById("toastIcon").textContent = icon;
-      toast.style.display = "flex";
-      clearTimeout(toastTimer);
-      toastTimer = setTimeout(() => {
-        toast.style.display = "none";
-      }, 2500);
-    }
-
-    function copyPixelUrl(id) {
-      const url = `${window.location.origin}/track/${id}.png`;
-      navigator.clipboard.writeText(url).then(() => {
-        showToast("Pixel URL copied to clipboard!");
-      });
-    }
-
-    function copyAttachmentUrl(id) {
-      const url = `${window.location.origin}/view/${id}`;
-      navigator.clipboard.writeText(url).then(() => {
-        showToast("View link copied to clipboard!");
-      });
-    }
-
-    // Toggle Open History
-    function toggleHistory(id, btn) {
-      const drawer = document.getElementById(`history-${id}`);
-      if (!drawer) return;
-      const isOpen = drawer.classList.contains("is-open");
-      if (isOpen) {
-        drawer.classList.remove("is-open");
-        btn.classList.remove("is-open");
-      } else {
-        drawer.classList.add("is-open");
-        btn.classList.add("is-open");
+      const toastMsg = document.getElementById("toastMsg");
+      const toastAction = document.getElementById("toastAction");
+      let toastTimer;
+      function showToast(message, action) {
+        toastMsg.textContent = message;
+        toastAction.hidden = !action;
+        toastAction.onclick = action ? () => { hideToast(); action.run(); } : null;
+        if (action) toastAction.textContent = action.label;
+        toast.classList.add("is-visible");
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(hideToast, action ? 6000 : 2600);
       }
-    }
+      function hideToast() { toast.classList.remove("is-visible"); }
 
-    // Delete single email
-    async function deleteEmail(id) {
-      if (!confirm("Delete this email record and linked attachments?")) return;
-      try {
-        const res = await apiFetch('/api/delete-email', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tracking_id: id })
+      const dialog = document.getElementById("confirmDialog");
+      function confirmAction(title, message, okLabel = "Delete") {
+        document.getElementById("confirmTitle").textContent = title;
+        document.getElementById("confirmMessage").textContent = message;
+        document.getElementById("confirmOk").textContent = okLabel;
+        if (typeof dialog.showModal !== "function") return Promise.resolve(window.confirm(`${title}\n\n${message}`));
+        dialog.returnValue = "";
+        dialog.showModal();
+        return new Promise((resolve) => dialog.addEventListener("close", () => resolve(dialog.returnValue === "ok"), { once: true }));
+      }
+
+      // ─── API ───────────────────────────────────────────────────
+      async function api(url, body) {
+        const res = await fetch(url, {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json", "X-CSRF-Token": CSRF_TOKEN },
+          body: JSON.stringify(body || {})
         });
-        const data = await res.json();
-        if (data.success) {
-          const card = document.getElementById(`card-${id}`);
-          if (card) card.remove();
+        if (res.status === 401) {
+          location.href = "/login?next=/dashboard";
+          throw new Error("Session expired");
+        }
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+        return data;
+      }
+
+      // ─── Live refresh: swap in fresh content, keep what's expanded ─
+      const btnRefresh = document.getElementById("btnRefresh");
+      const liveStatus = document.getElementById("liveStatus");
+      const liveText = document.getElementById("liveText");
+      let refreshing = false;
+
+      function rememberState() {
+        expanded.clear();
+        openDetails.clear();
+        document.querySelectorAll(".is-open[data-id]").forEach((el) => expanded.add(el.dataset.id));
+        document.querySelectorAll("details[open][data-key]").forEach((el) => openDetails.add(el.dataset.key));
+      }
+      function restoreState() {
+        expanded.forEach((id) => {
+          const card = document.querySelector(`[data-id="${CSS.escape(id)}"]`);
+          if (card) setExpanded(card, true);
+        });
+        openDetails.forEach((key) => {
+          const el = document.querySelector(`details[data-key="${CSS.escape(key)}"]`);
+          if (el) el.open = true;
+        });
+      }
+
+      async function refresh() {
+        if (refreshing) return;
+        refreshing = true;
+        btnRefresh.classList.add("is-spinning");
+        try {
+          const res = await fetch(location.href, { credentials: "same-origin" });
+          if (res.redirected && new URL(res.url).pathname === "/login") {
+            location.href = res.url;
+            return;
+          }
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const doc = new DOMParser().parseFromString(await res.text(), "text/html");
+          rememberState();
+          for (const id of ["live", "settingsBody"]) {
+            const fresh = doc.getElementById(id);
+            const current = document.getElementById(id);
+            if (!fresh || !current) continue;
+            // Don't wipe something the user is typing in the settings drawer
+            if (id === "settingsBody" && current.contains(document.activeElement) && document.activeElement.value) continue;
+            current.innerHTML = fresh.innerHTML;
+          }
+          restoreState();
+          renderTimes();
+          lastUpdated = Date.now();
+          liveStatus.classList.remove("is-paused");
+          updateLiveText();
+        } catch (err) {
+          liveStatus.classList.add("is-paused");
+          liveText.textContent = "Offline";
+        } finally {
+          refreshing = false;
+          btnRefresh.classList.remove("is-spinning");
+        }
+      }
+
+      function updateLiveText() {
+        if (liveStatus.classList.contains("is-paused")) return;
+        const s = Math.round((Date.now() - lastUpdated) / 1000);
+        liveText.textContent = s < 10 ? "Live · just updated" : `Live · ${s < 60 ? s + "s" : Math.round(s / 60) + "m"} ago`;
+      }
+
+      function canAutoRefresh() {
+        if (document.visibilityState !== "visible") return false;
+        if (dialog.open || document.body.classList.contains("drawer-open")) return false;
+        const active = document.activeElement;
+        return !(active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA"));
+      }
+
+      setInterval(() => {
+        updateLiveText();
+        if (Date.now() - lastUpdated >= REFRESH_SECONDS * 1000 && canAutoRefresh()) refresh();
+      }, 5000);
+      setInterval(() => renderTimes(), 60000);
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible" && Date.now() - lastUpdated > 5000) refresh();
+      });
+      btnRefresh.addEventListener("click", refresh);
+
+      // ─── Rows ──────────────────────────────────────────────────
+      function setExpanded(card, open) {
+        card.classList.toggle("is-open", open);
+        const btn = card.querySelector(":scope > .row-main");
+        const detail = card.querySelector(":scope > .row-detail");
+        if (btn) btn.setAttribute("aria-expanded", String(open));
+        if (detail) detail.hidden = !open;
+      }
+
+      // ─── Settings drawer ───────────────────────────────────────
+      const drawer = document.getElementById("settings");
+      let drawerReturnFocus = null;
+      function openSettings() {
+        drawerReturnFocus = document.activeElement;
+        document.body.classList.add("drawer-open");
+        drawer.setAttribute("aria-hidden", "false");
+        drawer.querySelector(".drawer-head .icon-btn").focus();
+      }
+      function closeSettings() {
+        document.body.classList.remove("drawer-open");
+        drawer.setAttribute("aria-hidden", "true");
+        if (drawerReturnFocus) drawerReturnFocus.focus();
+      }
+
+      // ─── Actions ───────────────────────────────────────────────
+      const actions = {
+        "open-settings": openSettings,
+        "close-settings": closeSettings,
+
+        async copy(el) {
+          try {
+            await navigator.clipboard.writeText(el.dataset.value);
+            showToast("Copied to clipboard");
+          } catch {
+            showToast("Couldn't copy. Select and copy it manually: " + el.dataset.value);
+          }
+        },
+
+        async mark(el) {
+          const payload = { type: el.dataset.type, id: Number(el.dataset.id), is_self: el.dataset.self === "1" };
+          await api("/api/mark-self", payload);
+          await refresh();
+          showToast(payload.is_self ? "Marked as your own open" : "Counted as a recipient open", {
+            label: "Undo",
+            run: async () => {
+              await api("/api/mark-self", { ...payload, is_self: !payload.is_self });
+              await refresh();
+            }
+          });
+        },
+
+        async "delete-email"(el) {
+          if (!(await confirmAction("Delete this email?", "Its open history and any linked documents will be deleted. This can't be undone."))) return;
+          await api("/api/delete-email", { tracking_id: el.dataset.id });
+          await refresh();
           showToast("Email deleted");
-          setTimeout(() => location.reload(), 600);
+        },
+
+        async "delete-attachment"(el) {
+          if (!(await confirmAction("Delete this document?", "The file and its view history will be deleted, and its link will stop working."))) return;
+          await api("/api/delete-attachment", { attachment_id: el.dataset.id });
+          await refresh();
+          showToast("Document deleted");
+        },
+
+        async "clear-all"() {
+          if (!(await confirmAction("Delete all data?", "Every tracked email, document, file and open will be permanently deleted.", "Delete everything"))) return;
+          await api("/api/clear-all");
+          await refresh();
+          showToast("All data deleted");
+        },
+
+        async "forget-device"(el) {
+          await api("/api/devices", { action: "remove", network: el.dataset.network });
+          await refresh();
+          showToast("Network forgotten");
+        },
+
+        async "unignore-ip"(el) {
+          await api("/api/ignored-ips", { ip: el.dataset.ip, action: "remove" });
+          await refresh();
+          showToast("Removed from ignore list");
+        },
+
+        async "ignore-current"(el) {
+          await api("/api/ignored-ips", { ip: el.dataset.ip, action: "add", label: "This device" });
+          await refresh();
+          showToast("Your IP will always be ignored");
         }
-      } catch (err) {
-        showToast("Failed to delete: " + err.message, "✕");
-      }
-    }
+      };
 
-    // Delete single attachment
-    async function deleteAttachment(id) {
-      if (!confirm("Delete this tracked attachment?")) return;
-      try {
-        const res = await apiFetch('/api/delete-attachment', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ attachment_id: id })
-        });
-        const data = await res.json();
-        if (data.success) {
-          const card = document.getElementById(`att-card-${id}`);
-          if (card) card.remove();
-          showToast("Attachment deleted");
-          setTimeout(() => location.reload(), 600);
+      document.addEventListener("click", async (event) => {
+        const row = event.target.closest(".row-main");
+        if (row) {
+          const card = row.parentElement;
+          setExpanded(card, !card.classList.contains("is-open"));
+          return;
         }
-      } catch (err) {
-        showToast("Failed to delete: " + err.message, "✕");
-      }
-    }
-
-    // Clear all emails
-    async function clearAllEmails() {
-      if (!confirm("Delete ALL tracked emails, attachments, and open history?")) return;
-      try {
-        const res = await apiFetch('/api/clear-all', { method: 'POST' });
-        const data = await res.json();
-        if (data.success) {
-          showToast("All data cleared");
-          setTimeout(() => location.reload(), 600);
+        const el = event.target.closest("[data-action]");
+        if (!el || !actions[el.dataset.action]) return;
+        event.preventDefault();
+        el.disabled = true;
+        try {
+          await actions[el.dataset.action](el);
+        } catch (err) {
+          showToast(`Something went wrong: ${err.message}`);
+        } finally {
+          el.disabled = false;
         }
-      } catch (err) {
-        showToast("Failed to clear: " + err.message, "✕");
-      }
-    }
+      });
 
-    // Auto-refresh countdown (paused while typing a search so the reload doesn't eat the input)
-    let countdown = 15;
-    const elLabel = document.getElementById("refreshLabel");
-    document.getElementById("btnRefresh").addEventListener("click", () => location.reload());
+      document.addEventListener("submit", async (event) => {
+        if (event.target.id !== "ignoreForm") return;
+        event.preventDefault();
+        const input = event.target.querySelector("input[name=ip]");
+        try {
+          await api("/api/ignored-ips", { ip: input.value.trim(), action: "add", label: "Added manually" });
+          input.value = "";
+          await refresh();
+          showToast("Added to ignore list");
+        } catch (err) {
+          showToast(`Couldn't add: ${err.message}`);
+        }
+      });
 
-    const elSearch = document.getElementById("searchInput");
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape" && document.body.classList.contains("drawer-open")) closeSettings();
+        const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
+        if (event.key === "/" && !typing && !dialog.open) {
+          event.preventDefault();
+          document.getElementById("searchInput").focus();
+        }
+      });
 
-    setInterval(() => {
-      if (document.activeElement === elSearch) return;
-      countdown--;
-      if (countdown <= 0) {
-        location.reload();
-      } else {
-        elLabel.textContent = `Refresh (${countdown}s)`;
-      }
-    }, 1000);
+      renderTimes();
+    })();
   </script>
 </body>
 </html>
