@@ -3,6 +3,8 @@
  * Injects tracking controls into Gmail compose window,
  * intercepts Send, requests tracking ID from backend,
  * and appends 1x1 tracking pixel and transparency disclosure.
+ *
+ * Also provides "Track Attachment" button for PDF/document tracking.
  */
 
 (function () {
@@ -24,6 +26,8 @@
 
   // Re-check settings periodically
   setInterval(refreshSettings, 30000);
+
+  // ─── Compose Container Detection ───────────────────────────────────
 
   // Helper to find the compose or inline reply container
   function findComposeContainer(el) {
@@ -138,6 +142,18 @@
     return Array.from(recipients).join(", ");
   }
 
+  // ─── Tracked Attachment State ───────────────────────────────────────
+
+  // Each compose box maintains its own list of tracked attachments
+  function getTrackedAttachments(composeBox) {
+    if (!composeBox._trackedAttachments) {
+      composeBox._trackedAttachments = [];
+    }
+    return composeBox._trackedAttachments;
+  }
+
+  // ─── Send Interception ─────────────────────────────────────────────
+
   // Intercept and inject tracking
   async function handleSendInterception(composeBox, sendButton) {
     if (!composeBox || !sendButton) return;
@@ -176,11 +192,17 @@
     const recipients = extractRecipients(composeBox);
     const label = `${subject} -> ${recipients}`;
 
+    // Collect attachment IDs for linking
+    const attachmentIds = getTrackedAttachments(composeBox).map(a => a.attachment_id);
+
     try {
       const response = await new Promise((resolve) => {
-        chrome.runtime.sendMessage({ type: "CREATE_TRACKER", label: label }, (res) => {
-          resolve(res || { success: false, error: "No response from extension background" });
-        });
+        chrome.runtime.sendMessage(
+          { type: "CREATE_TRACKER", label: label, attachment_ids: attachmentIds },
+          (res) => {
+            resolve(res || { success: false, error: "No response from extension background" });
+          }
+        );
       });
 
       if (!response || !response.success) {
@@ -289,6 +311,196 @@
     composeBox.appendChild(banner);
   }
 
+  // ─── Attachment Tracking UI ─────────────────────────────────────────
+
+  function createAttachmentCard(body, attachmentData) {
+    /**
+     * Insert a styled "View Document" card into the email body.
+     * Uses all inline styles for maximum email client compatibility.
+     */
+    const existingCard = body.querySelector(`[data-tracked-attachment="${attachmentData.attachment_id}"]`);
+    if (existingCard) return;
+
+    const card = document.createElement("div");
+    card.setAttribute("data-tracked-attachment", attachmentData.attachment_id);
+    card.style.cssText =
+      "margin: 16px 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;";
+
+    card.innerHTML = `
+      <table cellpadding="0" cellspacing="0" border="0" style="border: 1px solid #e0e0e0; border-radius: 10px; overflow: hidden; width: 100%; max-width: 420px; background: #ffffff; box-shadow: 0 1px 4px rgba(0,0,0,0.06);">
+        <tr>
+          <td style="padding: 16px 18px; vertical-align: middle;">
+            <table cellpadding="0" cellspacing="0" border="0" style="width: 100%;">
+              <tr>
+                <td style="width: 40px; vertical-align: top;">
+                  <div style="width: 38px; height: 38px; background: linear-gradient(135deg, #ef4444, #f97316); border-radius: 8px; text-align: center; line-height: 38px; font-size: 18px;">📄</div>
+                </td>
+                <td style="padding-left: 12px; vertical-align: middle;">
+                  <div style="font-size: 14px; font-weight: 600; color: #1a1a1a; line-height: 1.3; margin-bottom: 2px;">${attachmentData.filename}</div>
+                  <div style="font-size: 12px; color: #888888;">${attachmentData.file_size_display}</div>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 0 18px 16px;">
+            <a href="${attachmentData.view_url}" target="_blank" style="display: inline-block; padding: 9px 22px; background: linear-gradient(135deg, #4f46e5, #6366f1); color: #ffffff; text-decoration: none; border-radius: 7px; font-size: 13px; font-weight: 600; letter-spacing: 0.01em;">📥 View Document</a>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 18px; background: #f9fafb; border-top: 1px solid #f0f0f0;">
+            <div style="font-size: 10px; color: #b0b0b0; letter-spacing: 0.02em;">Shared securely via MailSeen</div>
+          </td>
+        </tr>
+      </table>
+    `;
+
+    // Insert before the tracking pixel container if it exists, otherwise at the end
+    const trackerContainer = body.querySelector(".email-tracker-container");
+    if (trackerContainer) {
+      body.insertBefore(card, trackerContainer);
+    } else {
+      body.appendChild(card);
+    }
+
+    // Trigger Gmail's draft sync
+    body.dispatchEvent(new Event("input", { bubbles: true }));
+    body.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+
+  function handleAttachmentUpload(composeBox) {
+    const body = findMessageBody(composeBox);
+    if (!body) {
+      console.warn("[EmailTracker] Cannot find message body for attachment insertion");
+      return;
+    }
+
+    // Create a hidden file input
+    const fileInput = document.createElement("input");
+    fileInput.type = "file";
+    fileInput.accept = ".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.csv,.png,.jpg,.jpeg,.gif,.svg,.zip";
+    fileInput.style.display = "none";
+    document.body.appendChild(fileInput);
+
+    fileInput.addEventListener("change", async (e) => {
+      const file = fileInput.files[0];
+      if (!file) {
+        fileInput.remove();
+        return;
+      }
+
+      // Show upload progress indicator in compose box
+      const progressEl = showUploadProgress(composeBox, file.name);
+
+      try {
+        // Read file as base64
+        const base64Data = await readFileAsBase64(file);
+
+        const subject = extractSubject(composeBox);
+        const recipients = extractRecipients(composeBox);
+        const label = `${file.name} (${subject} -> ${recipients})`;
+
+        // Send to background script for upload
+        const response = await new Promise((resolve) => {
+          chrome.runtime.sendMessage(
+            {
+              type: "UPLOAD_ATTACHMENT",
+              fileData: base64Data,
+              fileName: file.name,
+              fileType: file.type || "application/octet-stream",
+              label: label,
+            },
+            (res) => {
+              resolve(res || { success: false, error: "No response from background" });
+            }
+          );
+        });
+
+        if (response && response.success) {
+          // Store attachment info for linking on send
+          getTrackedAttachments(composeBox).push({
+            attachment_id: response.attachment_id,
+            filename: response.filename,
+            file_size_display: response.file_size_display,
+            view_url: response.view_url,
+          });
+
+          // Insert styled card into email body
+          createAttachmentCard(body, response);
+
+          // Update progress to success
+          updateUploadProgress(progressEl, "success", `✓ ${response.filename} tracked`);
+
+          // Update the attachment count badge
+          updateAttachmentBadge(composeBox);
+        } else {
+          updateUploadProgress(progressEl, "error", `✗ Upload failed: ${response ? response.error : "Unknown"}`);
+        }
+      } catch (err) {
+        console.error("[EmailTracker] Attachment upload error:", err);
+        updateUploadProgress(progressEl, "error", `✗ Error: ${err.message}`);
+      }
+
+      fileInput.remove();
+    });
+
+    fileInput.click();
+  }
+
+  function readFileAsBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        // result is "data:<mime>;base64,<data>" — extract just the base64 part
+        const base64 = reader.result.split(",")[1];
+        resolve(base64);
+      };
+      reader.onerror = () => reject(new Error("Failed to read file"));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function showUploadProgress(composeBox, fileName) {
+    // Remove existing progress bars
+    const existing = composeBox.querySelector(".tracker-upload-progress");
+    if (existing) existing.remove();
+
+    const el = document.createElement("div");
+    el.className = "tracker-upload-progress";
+    el.innerHTML = `
+      <div class="tracker-upload-spinner"></div>
+      <span class="tracker-upload-text">Uploading ${fileName}...</span>
+    `;
+
+    // Place it near the bottom of the compose box
+    const body = findMessageBody(composeBox);
+    if (body && body.parentElement) {
+      body.parentElement.insertBefore(el, body.nextSibling);
+    } else {
+      composeBox.appendChild(el);
+    }
+
+    return el;
+  }
+
+  function updateUploadProgress(el, status, message) {
+    if (!el) return;
+    el.className = `tracker-upload-progress tracker-upload-${status}`;
+    el.innerHTML = `<span class="tracker-upload-text">${message}</span>`;
+
+    // Auto-remove after a delay
+    setTimeout(() => {
+      if (el.parentNode) {
+        el.style.opacity = "0";
+        el.style.transform = "translateY(-4px)";
+        setTimeout(() => el.remove(), 200);
+      }
+    }, 3000);
+  }
+
+  // ─── Compose Toolbar Injection ─────────────────────────────────────
+
   // Intercept Click events in capture phase
   document.addEventListener(
     "click",
@@ -344,7 +556,7 @@
     true
   );
 
-  // Inject Mailtrack-style tracking toggle button into compose toolbar
+  // Inject Mailtrack-style tracking toggle button AND attachment button into compose toolbar
   function setupComposeToolbar(composeBox) {
     if (!composeBox || composeBox.querySelector(".tracker-compose-toggle")) return;
 
@@ -357,6 +569,7 @@
       sendButton.closest('.Up, .dC, tr.btC, div.btC')?.querySelector('.T-I-atl, .aoO')?.parentElement ||
       sendButton.parentElement;
 
+    // ─── Tracking Toggle Button ────────────────────
     const toggleBtn = document.createElement("button");
     toggleBtn.type = "button";
     toggleBtn.className = "tracker-compose-toggle is-active";
@@ -374,19 +587,47 @@
       updateToggleAppearance(toggleBtn, next);
     });
 
-    // Place toggle button right next to the Send button group!
-    if (sendGroup && sendGroup.parentNode) {
-      if (sendGroup.nextSibling) {
-        sendGroup.parentNode.insertBefore(toggleBtn, sendGroup.nextSibling);
+    // ─── Attach Tracked File Button ────────────────
+    const attachBtn = document.createElement("button");
+    attachBtn.type = "button";
+    attachBtn.className = "tracker-compose-attach";
+    attachBtn.title = "Attach a tracked document (PDF, etc.) — recipient views will be tracked";
+    attachBtn.innerHTML = `<span class="tracker-icon">📎</span><span class="tracker-label">Track PDF</span>`;
+
+    attachBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      handleAttachmentUpload(composeBox);
+    });
+
+    // ─── Attachment count badge ────────────────────
+    const badge = document.createElement("span");
+    badge.className = "tracker-attach-badge";
+    badge.style.display = "none";
+    attachBtn.appendChild(badge);
+
+    // Place buttons next to the Send button group
+    const targetParent = sendGroup && sendGroup.parentNode ? sendGroup.parentNode : null;
+    if (targetParent) {
+      const insertAfter = sendGroup.nextSibling;
+      if (insertAfter) {
+        targetParent.insertBefore(attachBtn, insertAfter);
+        targetParent.insertBefore(toggleBtn, insertAfter);
       } else {
-        sendGroup.parentNode.appendChild(toggleBtn);
+        targetParent.appendChild(toggleBtn);
+        targetParent.appendChild(attachBtn);
       }
     } else {
       // Fallback: look for action bar
-      const toolbar = composeBox.querySelector("tr.btC, div.btC, td.gU.Up, .dC, [role=\"toolbar\"]");
+      const toolbar = composeBox.querySelector('tr.btC, div.btC, td.gU.Up, .dC, [role="toolbar"]');
       if (toolbar) {
-        if (toolbar.firstChild) toolbar.insertBefore(toggleBtn, toolbar.firstChild);
-        else toolbar.appendChild(toggleBtn);
+        if (toolbar.firstChild) {
+          toolbar.insertBefore(attachBtn, toolbar.firstChild);
+          toolbar.insertBefore(toggleBtn, toolbar.firstChild);
+        } else {
+          toolbar.appendChild(toggleBtn);
+          toolbar.appendChild(attachBtn);
+        }
       }
     }
   }
@@ -402,6 +643,20 @@
       btn.title = "Email Open Tracking is OFF. Click to enable for this email.";
     }
   }
+
+  function updateAttachmentBadge(composeBox) {
+    const badge = composeBox.querySelector(".tracker-attach-badge");
+    if (!badge) return;
+    const count = getTrackedAttachments(composeBox).length;
+    if (count > 0) {
+      badge.textContent = count;
+      badge.style.display = "inline-flex";
+    } else {
+      badge.style.display = "none";
+    }
+  }
+
+  // ─── Mutation Observer & Scanning ───────────────────────────────────
 
   // Scan for all existing compose and inline reply boxes
   function scanComposeWindows() {
@@ -453,5 +708,5 @@
   observer.observe(document.body, { childList: true, subtree: true });
   scanComposeWindows();
 
-  console.log("[EmailTracker] Gmail Email Open Tracker content script loaded.");
+  console.log("[EmailTracker] Gmail Email Open Tracker content script loaded (with attachment tracking).");
 })();

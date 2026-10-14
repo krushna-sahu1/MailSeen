@@ -1,5 +1,7 @@
 /* Gmail Email Open Tracker - Injected UI Styles */
 
+/* ─── Tracking Toggle Button ──────────────────────────────────── */
+
 .tracker-compose-toggle {
   display: inline-flex;
   align-items: center;
@@ -50,6 +52,114 @@
   line-height: 1;
 }
 
+/* ─── Track Attachment Button ─────────────────────────────────── */
+
+.tracker-compose-attach {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 10px;
+  margin: 4px 4px 4px 0;
+  border-radius: 14px;
+  font-family: Roboto, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid #d4c5f9;
+  background-color: #f3f0ff;
+  color: #5b21b6;
+  transition: all 0.2s ease-in-out;
+  outline: none;
+  user-select: none;
+  vertical-align: middle;
+  position: relative;
+}
+
+.tracker-compose-attach:hover {
+  background-color: #ede9fe;
+  border-color: #a78bfa;
+  color: #4c1d95;
+}
+
+.tracker-compose-attach:active {
+  transform: scale(0.97);
+}
+
+.tracker-compose-attach .tracker-icon {
+  font-size: 13px;
+  line-height: 1;
+}
+
+.tracker-compose-attach .tracker-label {
+  line-height: 1;
+}
+
+/* Attachment count badge */
+.tracker-attach-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #7c3aed;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+/* ─── Upload Progress Bar ─────────────────────────────────────── */
+
+.tracker-upload-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  margin: 6px 0;
+  background: #f0f0ff;
+  border: 1px solid #d4c5f9;
+  border-radius: 8px;
+  font-size: 12px;
+  font-family: Roboto, -apple-system, BlinkMacSystemFont, sans-serif;
+  color: #5b21b6;
+  animation: trackerFadeIn 0.2s ease;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.tracker-upload-success {
+  background: #e6f4ea;
+  border-color: #ceead6;
+  color: #137333;
+}
+
+.tracker-upload-error {
+  background: #fce8e6;
+  border-color: #f5c6cb;
+  color: #c5221f;
+}
+
+.tracker-upload-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #d4c5f9;
+  border-top-color: #7c3aed;
+  border-radius: 50%;
+  animation: trackerSpin 0.8s linear infinite;
+}
+
+@keyframes trackerSpin {
+  to { transform: rotate(360deg); }
+}
+
+/* ─── Send Loading Indicator ──────────────────────────────────── */
+
 /* Subtle loading indicator on Send button while contacting backend */
 .tracker-btn-loading {
   position: relative;
@@ -58,6 +168,8 @@
   pointer-events: none !important;
   filter: saturate(0.8);
 }
+
+/* ─── Fallback Banner ─────────────────────────────────────────── */
 
 /* Warning banner when tracking backend is unreachable */
 .tracker-fallback-banner {

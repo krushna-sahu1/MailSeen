@@ -72,6 +72,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
       if (message.type === "CREATE_TRACKER") {
         const label = message.label || "Gmail message";
+        const attachment_ids = message.attachment_ids || [];
         const targetUrl = `${baseUrl}/new`;
 
         const controller = new AbortController();
@@ -84,7 +85,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               "Content-Type": "application/json",
               Accept: "application/json"
             },
-            body: JSON.stringify({ label }),
+            body: JSON.stringify({ label, attachment_ids }),
             signal: controller.signal
           });
           clearTimeout(timeoutId);
@@ -110,6 +111,63 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           sendResponse({
             success: false,
             error: err.name === "AbortError" ? "Backend request timed out" : err.message
+          });
+        }
+        return;
+      }
+
+      // ─── Attachment Upload ────────────────────────────────────────
+      if (message.type === "UPLOAD_ATTACHMENT") {
+        const targetUrl = `${baseUrl}/api/upload-attachment`;
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s for large files
+
+        try {
+          // Decode base64 file data from content script
+          const byteString = atob(message.fileData);
+          const ab = new ArrayBuffer(byteString.length);
+          const ia = new Uint8Array(ab);
+          for (let i = 0; i < byteString.length; i++) {
+            ia[i] = byteString.charCodeAt(i);
+          }
+          const blob = new Blob([ab], { type: message.fileType || "application/octet-stream" });
+
+          const formData = new FormData();
+          formData.append("file", blob, message.fileName);
+          formData.append("label", message.label || message.fileName);
+
+          const res = await fetch(targetUrl, {
+            method: "POST",
+            body: formData,
+            signal: controller.signal
+          });
+          clearTimeout(timeoutId);
+
+          if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            sendResponse({
+              success: false,
+              error: errData.error || `Upload failed (HTTP ${res.status})`
+            });
+            return;
+          }
+
+          const data = await res.json();
+          sendResponse({
+            success: true,
+            attachment_id: data.attachment_id,
+            filename: data.filename,
+            file_size: data.file_size,
+            file_size_display: data.file_size_display,
+            view_url: data.view_url,
+            file_url: data.file_url
+          });
+        } catch (err) {
+          clearTimeout(timeoutId);
+          sendResponse({
+            success: false,
+            error: err.name === "AbortError" ? "Upload timed out (30s)" : err.message
           });
         }
         return;

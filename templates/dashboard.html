@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>MailSeen · Minimalist Email Tracker</title>
+  <title>MailSeen · Email & Document Tracker</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -26,6 +26,11 @@
       --rose-bg: rgba(239, 68, 68, 0.12);
       --blue: #3b82f6;
       --blue-bg: rgba(59, 130, 246, 0.12);
+      --purple: #8b5cf6;
+      --purple-bg: rgba(139, 92, 246, 0.12);
+      --purple-border: rgba(139, 92, 246, 0.25);
+      --orange: #f59e0b;
+      --orange-bg: rgba(245, 158, 11, 0.12);
       --radius: 10px;
       --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       --font-mono: 'JetBrains Mono', monospace;
@@ -165,7 +170,7 @@
     /* Minimalist Stat Cards */
     .stats-row {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
       gap: 16px;
       margin-bottom: 28px;
     }
@@ -293,6 +298,31 @@
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
     }
 
+    /* Section titles */
+    .section-heading {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+      margin-top: 36px;
+    }
+
+    .section-heading h2 {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+
+    .section-heading .count-badge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: var(--purple-bg);
+      color: var(--purple);
+      border: 1px solid var(--purple-border);
+    }
+
     /* Email Items */
     .email-list {
       display: flex;
@@ -388,6 +418,26 @@
       white-space: nowrap;
     }
 
+    .badge-attachment {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: var(--purple-bg);
+      color: var(--purple);
+      border: 1px solid var(--purple-border);
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .badge-attachment-viewed {
+      background: var(--orange-bg);
+      color: var(--orange);
+      border-color: rgba(245, 158, 11, 0.25);
+    }
+
     .card-actions {
       display: flex;
       align-items: center;
@@ -449,6 +499,65 @@
       transform: rotate(180deg);
     }
 
+    /* Attachment chips inside email card */
+    .attachment-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 0 20px 12px;
+    }
+
+    .attachment-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: var(--surface-elevated);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 12px;
+      transition: border-color 0.15s ease;
+    }
+
+    .attachment-chip:hover {
+      border-color: var(--border-hover);
+    }
+
+    .attachment-chip-icon {
+      font-size: 14px;
+    }
+
+    .attachment-chip-name {
+      font-weight: 500;
+      color: var(--text);
+      max-width: 180px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .attachment-chip-size {
+      color: var(--text-dim);
+      font-size: 11px;
+    }
+
+    .attachment-chip-views {
+      font-weight: 600;
+      font-size: 11px;
+      padding: 1px 6px;
+      border-radius: 999px;
+    }
+
+    .attachment-chip-views.has-views {
+      color: var(--orange);
+      background: var(--orange-bg);
+    }
+
+    .attachment-chip-views.no-views {
+      color: var(--text-dim);
+      background: rgba(255,255,255,0.05);
+    }
+
     /* History Timeline */
     .history-drawer {
       border-top: 1px solid var(--border);
@@ -492,6 +601,10 @@
       margin-bottom: 0;
     }
 
+    .timeline-row.timeline-attachment {
+      border-left: 3px solid var(--purple);
+    }
+
     .timeline-left {
       display: flex;
       align-items: center;
@@ -501,6 +614,25 @@
     .timeline-client {
       font-weight: 600;
       color: var(--text);
+    }
+
+    .timeline-type-tag {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 1px 6px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .timeline-type-email {
+      color: var(--green);
+      background: var(--green-bg);
+    }
+
+    .timeline-type-doc {
+      color: var(--purple);
+      background: var(--purple-bg);
     }
 
     .timeline-time {
@@ -541,6 +673,71 @@
       color: var(--text-muted);
       max-width: 400px;
       margin: 0 auto;
+    }
+
+    /* Standalone attachment cards */
+    .attachment-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      border-left: 3px solid var(--purple);
+      transition: border-color 0.15s ease;
+      overflow: hidden;
+    }
+
+    .attachment-card:hover {
+      border-color: var(--border-hover);
+      border-left-color: var(--purple);
+    }
+
+    .attachment-card-header {
+      padding: 14px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .attachment-card-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex: 1;
+      min-width: 200px;
+    }
+
+    .attachment-file-icon {
+      width: 38px;
+      height: 38px;
+      background: var(--purple-bg);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .attachment-file-details {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .attachment-file-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .attachment-file-meta {
+      font-size: 12px;
+      color: var(--text-muted);
+      display: flex;
+      gap: 8px;
     }
 
     /* Floating Toast */
@@ -587,7 +784,7 @@
         <button type="button" class="btn" id="btnRefresh">
           🔄 <span id="refreshLabel">Refresh</span>
         </button>
-        {% if emails %}
+        {% if emails or standalone_attachments %}
         <button type="button" class="btn btn-danger" onclick="clearAllEmails()">
           🗑️ Clear All
         </button>
@@ -625,6 +822,16 @@
           Genuine recipient views
         </div>
       </div>
+
+      <div class="stat-card">
+        <div class="stat-label">Document Views</div>
+        <div class="stat-number" style="color: var(--purple);">
+          {{ stats.total_attachment_views }}
+        </div>
+        <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">
+          {{ stats.total_attachments }} tracked document{{ 's' if stats.total_attachments != 1 }}
+        </div>
+      </div>
     </div>
 
     <!-- Search & Filter Controls -->
@@ -642,7 +849,7 @@
     </div>
 
     <!-- Email List -->
-    {% if not emails %}
+    {% if not emails and not standalone_attachments %}
     <div class="empty-state">
       <div class="empty-icon">📬</div>
       <div class="empty-title">No tracked emails yet</div>
@@ -684,8 +891,8 @@
             </div>
           </div>
 
-          <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-            <div>
+          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+            <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
               {% if e.open_count > 0 %}
                 <span class="badge-opened">
                   ✅ Opened {{ e.open_count }}x
@@ -696,34 +903,150 @@
               {% else %}
                 <span class="badge-waiting">⏳ Waiting for open</span>
               {% endif %}
+
+              {% if e.attachment_count > 0 %}
+                {% if e.attachment_views > 0 %}
+                  <span class="badge-attachment badge-attachment-viewed">📄 {{ e.attachment_views }} view{{ 's' if e.attachment_views != 1 }}</span>
+                {% else %}
+                  <span class="badge-attachment">📄 {{ e.attachment_count }} doc{{ 's' if e.attachment_count != 1 }}</span>
+                {% endif %}
+              {% endif %}
             </div>
 
             <div class="card-actions">
               <button type="button" class="icon-btn" onclick="copyPixelUrl('{{ e.id }}')" title="Copy pixel link">📋</button>
               <button type="button" class="icon-btn btn-delete" onclick="deleteEmail('{{ e.id }}')" title="Delete email">🗑️</button>
               
-              {% if e.opens %}
+              {% if e.opens or e.attachments %}
               <button type="button" class="btn-history" onclick="toggleHistory('{{ e.id }}', this)">
-                History ({{ e.opens|length }}) <span class="arrow">▼</span>
+                History ({{ e.opens|length + e.attachments|sum(attribute='view_count') }}) <span class="arrow">▼</span>
               </button>
               {% endif %}
             </div>
           </div>
         </div>
 
-        {% if e.opens %}
+        {% if e.attachments %}
+        <div class="attachment-chips">
+          {% for att in e.attachments %}
+          <div class="attachment-chip">
+            <span class="attachment-chip-icon">📄</span>
+            <span class="attachment-chip-name" title="{{ att.filename }}">{{ att.filename }}</span>
+            <span class="attachment-chip-size">{{ att.file_size_display }}</span>
+            {% if att.view_count > 0 %}
+              <span class="attachment-chip-views has-views">👁 {{ att.view_count }}</span>
+            {% else %}
+              <span class="attachment-chip-views no-views">—</span>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if e.opens or e.attachments %}
         <div id="history-{{ e.id }}" class="history-drawer">
-          <div class="history-header">Recipient Open Activity</div>
+          {% if e.opens %}
+          <div class="history-header">Email Open Activity</div>
           <div>
             {% for o in e.opens %}
             <div class="timeline-row">
               <div class="timeline-left">
                 <span style="font-size: 15px;">👁️</span>
                 <span class="timeline-client">{{ o.client_name }}</span>
+                <span class="timeline-type-tag timeline-type-email">Email</span>
               </div>
               <div>
                 <span class="timeline-time format-time-only" data-time="{{ o.opened_at }}"></span>
                 <span class="timeline-date format-date-only" data-time="{{ o.opened_at }}" style="margin-left: 6px;"></span>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% endif %}
+
+          {% for att in e.attachments %}
+            {% if att.views %}
+            <div class="history-header" style="margin-top: {% if e.opens %}16px{% else %}0{% endif %};">📄 {{ att.filename }} — Views</div>
+            <div>
+              {% for v in att.views %}
+              <div class="timeline-row timeline-attachment">
+                <div class="timeline-left">
+                  <span style="font-size: 15px;">📄</span>
+                  <span class="timeline-client">{{ v.client_name }}</span>
+                  <span class="timeline-type-tag timeline-type-doc">Doc</span>
+                </div>
+                <div>
+                  <span class="timeline-time format-time-only" data-time="{{ v.viewed_at }}"></span>
+                  <span class="timeline-date format-date-only" data-time="{{ v.viewed_at }}" style="margin-left: 6px;"></span>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+            {% endif %}
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+
+    {% if standalone_attachments %}
+    <div class="section-heading">
+      <h2>📎 Tracked Documents</h2>
+      <span class="count-badge">{{ standalone_attachments|length }}</span>
+    </div>
+    <div class="email-list">
+      {% for att in standalone_attachments %}
+      <div class="attachment-card" id="att-card-{{ att.id }}">
+        <div class="attachment-card-header">
+          <div class="attachment-card-info">
+            <div class="attachment-file-icon">📄</div>
+            <div class="attachment-file-details">
+              <div class="attachment-file-name" title="{{ att.filename }}">{{ att.filename }}</div>
+              <div class="attachment-file-meta">
+                <span>{{ att.file_size_display }}</span>
+                <span>·</span>
+                <span class="format-datetime" data-time="{{ att.created_at }}"></span>
+              </div>
+            </div>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            {% if att.view_count > 0 %}
+              <span class="badge-attachment badge-attachment-viewed">
+                👁 Viewed {{ att.view_count }}x
+                <span style="font-weight: 400; opacity: 0.85;">
+                  (<span class="format-time-only" data-time="{{ att.last_viewed_at }}"></span>)
+                </span>
+              </span>
+            {% else %}
+              <span class="badge-waiting" style="font-size: 11px;">⏳ No views yet</span>
+            {% endif %}
+
+            <button type="button" class="icon-btn" onclick="copyAttachmentUrl('{{ att.id }}')" title="Copy view link">📋</button>
+            <button type="button" class="icon-btn btn-delete" onclick="deleteAttachment('{{ att.id }}')" title="Delete attachment">🗑️</button>
+
+            {% if att.views %}
+            <button type="button" class="btn-history" onclick="toggleHistory('att-{{ att.id }}', this)">
+              Views ({{ att.views|length }}) <span class="arrow">▼</span>
+            </button>
+            {% endif %}
+          </div>
+        </div>
+
+        {% if att.views %}
+        <div id="history-att-{{ att.id }}" class="history-drawer">
+          <div class="history-header">Document View Activity</div>
+          <div>
+            {% for v in att.views %}
+            <div class="timeline-row timeline-attachment">
+              <div class="timeline-left">
+                <span style="font-size: 15px;">📄</span>
+                <span class="timeline-client">{{ v.client_name }}</span>
+              </div>
+              <div>
+                <span class="timeline-time format-time-only" data-time="{{ v.viewed_at }}"></span>
+                <span class="timeline-date format-date-only" data-time="{{ v.viewed_at }}" style="margin-left: 6px;"></span>
               </div>
             </div>
             {% endfor %}
@@ -733,6 +1056,8 @@
       </div>
       {% endfor %}
     </div>
+    {% endif %}
+
     {% endif %}
   </div>
 
@@ -811,6 +1136,13 @@
       });
     }
 
+    function copyAttachmentUrl(id) {
+      const url = `${window.location.origin}/view/${id}`;
+      navigator.clipboard.writeText(url).then(() => {
+        showToast("View link copied to clipboard!");
+      });
+    }
+
     // Toggle Open History
     function toggleHistory(id, btn) {
       const drawer = document.getElementById(`history-${id}`);
@@ -827,7 +1159,7 @@
 
     // Delete single email
     async function deleteEmail(id) {
-      if (!confirm("Delete this email record?")) return;
+      if (!confirm("Delete this email record and linked attachments?")) return;
       try {
         const res = await fetch('/api/delete-email', {
           method: 'POST',
@@ -846,9 +1178,30 @@
       }
     }
 
+    // Delete single attachment
+    async function deleteAttachment(id) {
+      if (!confirm("Delete this tracked attachment?")) return;
+      try {
+        const res = await fetch('/api/delete-attachment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ attachment_id: id })
+        });
+        const data = await res.json();
+        if (data.success) {
+          const card = document.getElementById(`att-card-${id}`);
+          if (card) card.remove();
+          showToast("Attachment deleted");
+          setTimeout(() => location.reload(), 600);
+        }
+      } catch (err) {
+        showToast("Failed to delete: " + err.message, "✕");
+      }
+    }
+
     // Clear all emails
     async function clearAllEmails() {
-      if (!confirm("Delete ALL tracked emails and open history?")) return;
+      if (!confirm("Delete ALL tracked emails, attachments, and open history?")) return;
       try {
         const res = await fetch('/api/clear-all', { method: 'POST' });
         const data = await res.json();
