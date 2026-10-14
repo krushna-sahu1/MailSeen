@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>content.js tests</title>
+  <style>
+    body { font: 13px/1.5 ui-monospace, Menlo, Consolas, monospace; padding: 16px; background: #fff; color: #111; }
+    .pass { color: #067d3b; }
+    .fail { color: #b3261e; font-weight: 600; }
+    #fixtures { position: absolute; left: -9999px; }
+  </style>
+</head>
+<body>
+  <h1 id="summary">Running…</h1>
+  <ul id="results"></ul>
+  <div id="fixtures"></div>
+
+  <script>
+    // Stub of the extension APIs content.js uses. Every message is recorded in `sent`.
+    const BACKEND = "https://mailseen.example";
+    const sent = [];
+    const backendReplies = {
+      GET_SETTINGS: () => ({
+        success: true,
+        settings: { backendUrl: BACKEND, trackingEnabled: true, includeDisclosure: true, disclosureText: "Tracked" }
+      }),
+      CREATE_TRACKER: () => ({
+        success: true,
+        tracking_id: "c".repeat(32),
+        pixel_url: `${BACKEND}/track/${"c".repeat(32)}.png`,
+        include_disclosure: true,
+        disclosure_text: "Tracked"
+      })
+    };
+    window.chrome = {
+      runtime: {
+        lastError: undefined,
+        sendMessage(message, callback) {
+          sent.push(message);
+          const reply = (backendReplies[message.type] || (() => ({ success: true })))(message);
+          if (callback) setTimeout(() => callback(reply), 0);
+        }
+      },
+      storage: { onChanged: { addListener: (fn) => storageListeners.push(fn) } }
+    };
+    const storageListeners = [];
+  </script>
+  <script src="../../extension/common.js"></script>
+  <script src="../../extension/content.js"></script>
+  <script>
+    const ID_A = "a".repeat(32);
+    const ID_B = "b".repeat(32);
+    const fixtures = document.getElementById("fixtures");
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const selfViews = () => sent.filter((m) => m.type === "SELF_VIEW").flatMap((m) => m.tracking_ids);
+    const proxyUrl = (id, host = BACKEND) => `https://ci3.googleusercontent.com/meips/ADKq_Nb=s0-d-e1-ft#${host}/track/${id}.png`;
+
+    function assert(condition, message) {
+      if (!condition) throw new Error(message || "assertion failed");
+    }
+
+    const tests = [];
+    const test = (name, fn) => tests.push([name, fn]);
+
+    function html(markup) {
+      const el = document.createElement("div");
+      el.innerHTML = markup;
+      fixtures.appendChild(el);
+      return el;
+    }
+
+    // ─── Own-pixel suppression (Phase 3, H7) ────────────────────────
+
+    test("hides our pixel in a read message and reports a self view", async () => {
+      sent.length = 0;
+      const root = html(`<div class="a3s"><p>Hi</p><img src="${proxyUrl(ID_A)}"></div>`);
+      await sleep(500);
+      const img = root.querySelector("img");
+      assert(!img.hasAttribute("src"), "src should be removed");
+      assert(img.style.display === "none", "img should be hidden");
+      assert(selfViews().includes(ID_A), "SELF_VIEW should include the tracking id");
+    });
+
+    test("reports each tracking id at most once per 30s", async () => {
+      sent.length = 0;
+      html(`<div class="a3s"><img src="${proxyUrl(ID_A)}"></div>`);
+      await sleep(500);
+      assert(!selfViews().includes(ID_A), "duplicate report within the dedupe window");
+    });
+
+    test("ignores images from other hosts", async () => {
+      sent.length = 0;
+      const root = html(`<div class="a3s"><img src="${proxyUrl(ID_B, "https://other.example")}"></div>`);
+      await sleep(500);
+      assert(root.querySelector("img").hasAttribute("src"), "foreign image must be untouched");
+      assert(selfViews().length === 0, "no report for foreign images");
+    });
+
+    test("removes pixels quoted into a reply draft", async () => {
+      sent.length = 0;
+      const root = html(`<div contenteditable="true" role="textbox"><blockquote><img src="${proxyUrl(ID_B)}"></blockquote></div>`);
+      await sleep(500);
+      assert(!root.querySelector("img"), "quoted pixel should be removed from the draft");
+      assert(selfViews().includes(ID_B), "quoted pixel load should be reported");
+    });
+
+    test("leaves the pixel injected into an outgoing draft alone", async () => {
+      sent.length = 0;
+      const root = html(
+        `<div contenteditable="true" role="textbox"><div class="email-tracker-container">` +
+        `<img src="${BACKEND}/track/${"d".repeat(32)}.png"></div></div>`
+      );
+      await sleep(500);
+      assert(root.querySelector("img").hasAttribute("src"), "outgoing pixel must keep its src");
+      assert(selfViews().length === 0, "outgoing pixel must not be reported");
+    });
+
+    // ─── Send flow (Phase 5, M8) ────────────────────────────────────
+
+    function composeFixture(extraBody = "") {
+      const root = html(
+        `<div role="dialog">` +
+        `<div role="textbox" contenteditable="true" aria-label="Message Body">Hello${extraBody}</div>` +
+        `<input name="subjectbox" value="Quarterly plan">` +
+        `<div role="button" class="T-I-atl" data-tooltip="Send">Send</div>` +
+        `</div>`
+      );
+      const body = root.querySelector('[aria-label="Message Body"]');
+      const sendButton = root.querySelector(".T-I-atl");
+      const sends = [];
+      sendButton.addEventListener("click", () => {
+        sends.push({ pixelPresent: !!body.querySelector(".email-tracker-container img") });
+      });
+      return { root, body, sendButton, sends };
+    }
+
+    test("send is held until the pixel is in a settled draft, then released once", async () => {
+      sent.length = 0;
+      const { sendButton, sends } = composeFixture();
+      await sleep(200); // toolbar injection
+      sendButton.click();
+      assert(sends.length === 0, "the original click must be intercepted");
+      await sleep(800);
+      const create = sent.find((m) => m.type === "CREATE_TRACKER");
+      assert(create, "tracker should be requested");
+      assert(create.subject === "Quarterly plan", `subject sent separately, got ${create.subject}`);
+      assert(typeof create.recipients === "string", "recipients sent separately");
+      assert(sends.length === 1, `expected exactly one released send, got ${sends.length}`);
+      assert(sends[0].pixelPresent, "pixel must be in the body when send is released");
+    });
+
+    test("re-injects the pixel if Gmail strips it while syncing the draft", async () => {
+      const { body, sendButton, sends } = composeFixture();
+      let stripped = 0;
+      const gmail = new MutationObserver(() => {
+        const node = body.querySelector(".email-tracker-container");
+        if (node && stripped === 0) {
+          stripped++;
+          node.remove();
+        }
+      });
+      gmail.observe(body, { childList: true, subtree: true });
+      await sleep(200);
+      sendButton.click();
+      await sleep(1200);
+      gmail.disconnect();
+      assert(stripped === 1, "fixture should have stripped the first injection");
+      assert(sends.length === 1 && sends[0].pixelPresent, "pixel should be restored before sending");
+    });
+
+    // ─── Scan throttling and settings (Phase 5, M9) ─────────────────
+
+    test("pixels are still suppressed while the page mutates continuously", async () => {
+      const noise = html("<div></div>");
+      const churn = setInterval(() => noise.appendChild(document.createElement("span")), 5);
+      try {
+        const root = html(`<div class="a3s"><img src="${proxyUrl("e".repeat(32))}"></div>`);
+        await sleep(400);
+        assert(!root.querySelector("img").hasAttribute("src"), "scan starved by constant mutations");
+      } finally {
+        clearInterval(churn);
+      }
+    });
+
+    test("settings changes apply without polling", async () => {
+      assert(storageListeners.length > 0, "content.js should listen to chrome.storage.onChanged");
+      const otherBackend = "https://other-backend.example";
+      const original = backendReplies.GET_SETTINGS;
+      backendReplies.GET_SETTINGS = () => ({ success: true, settings: { backendUrl: otherBackend } });
+      try {
+        storageListeners.forEach((fn) => fn({}, "sync"));
+        await sleep(50);
+        const root = html(`<div class="a3s"><img src="${proxyUrl("f".repeat(32), otherBackend)}"></div>`);
+        await sleep(400);
+        assert(!root.querySelector("img").hasAttribute("src"), "new backend host should be recognised");
+      } finally {
+        backendReplies.GET_SETTINGS = original;
+        storageListeners.forEach((fn) => fn({}, "sync"));
+        await sleep(50);
+      }
+    });
+
+    // ─── Untrusted text never becomes markup (Phase 6) ─────────────
+
+    const EVIL = `<img src=x onerror="window.pwned=1">`;
+
+    test("error banner shows the server's error as text", async () => {
+      window.pwned = undefined;
+      const original = backendReplies.CREATE_TRACKER;
+      backendReplies.CREATE_TRACKER = () => ({ success: false, error: EVIL });
+      try {
+        const { root, sendButton } = composeFixture();
+        await sleep(200);
+        sendButton.click();
+        await sleep(300);
+        const banner = root.querySelector(".tracker-fallback-banner");
+        assert(banner, "banner should be shown");
+        assert(banner.textContent.includes(EVIL), "error should appear literally");
+        assert(!banner.querySelector("img"), "error must not create elements");
+        assert(window.pwned === undefined, "no script ran");
+      } finally {
+        backendReplies.CREATE_TRACKER = original;
+      }
+    });
+
+    async function attachFile(root, uploadReply) {
+      backendReplies.UPLOAD_ATTACHMENT = () => uploadReply;
+      root.querySelector(".tracker-compose-attach").click();
+      const input = document.querySelector('body > input[type="file"]');
+      const transfer = new DataTransfer();
+      transfer.items.add(new File(["%PDF-1.4"], `${EVIL}.pdf`, { type: "application/pdf" }));
+      input.files = transfer.files;
+      input.dispatchEvent(new Event("change"));
+      await sleep(300);
+    }
+
+    test("attachment card escapes the filename and progress text", async () => {
+      window.pwned = undefined;
+      const { root, body } = composeFixture();
+      await sleep(200);
+      await attachFile(root, {
+        success: true,
+        attachment_id: "1".repeat(32),
+        filename: `${EVIL}.pdf`,
+        file_size_display: "<b>1 KB</b>",
+        view_url: `${BACKEND}/view/${"1".repeat(32)}`
+      });
+      const card = body.querySelector("[data-tracked-attachment]");
+      assert(card, "card should be inserted");
+      assert(card.textContent.includes(`${EVIL}.pdf`), "filename shown literally");
+      assert(!card.querySelector("img, b"), "no injected elements in the outgoing email");
+      assert(card.querySelector("a").href.startsWith(BACKEND), "link points at the backend");
+      const progress = root.querySelector(".tracker-upload-progress");
+      assert(progress && !progress.querySelector("img"), "progress text is not markup");
+      assert(window.pwned === undefined, "no script ran");
+    });
+
+    test("attachment card refuses non-http view URLs", async () => {
+      const { root, body } = composeFixture();
+      await sleep(200);
+      await attachFile(root, {
+        success: true,
+        attachment_id: "2".repeat(32),
+        filename: "a.pdf",
+        file_size_display: "1 KB",
+        view_url: "javascript:alert(1)"
+      });
+      assert(!body.querySelector("[data-tracked-attachment]"), "no card with a javascript: link");
+    });
+
+    (async () => {
+      // A file input's click() would open a native picker; the tests set .files directly instead
+      const nativeClick = HTMLInputElement.prototype.click;
+      HTMLInputElement.prototype.click = function () {
+        if (this.type !== "file") nativeClick.call(this);
+      };
+      await sleep(100); // let content.js load its settings
+      const list = document.getElementById("results");
+      if (!sent.some((m) => m.type === "GET_SETTINGS")) {
+        // content.js never ran (e.g. opened via file:// where the script is blocked); every result would be vacuous
+        document.getElementById("summary").textContent = document.title = "FAIL content.js did not load";
+        return;
+      }
+      let failed = 0;
+      for (const [name, fn] of tests) {
+        const li = document.createElement("li");
+        try {
+          await fn();
+          li.className = "pass";
+          li.textContent = `PASS ${name}`;
+        } catch (err) {
+          failed++;
+          li.className = "fail";
+          li.textContent = `FAIL ${name}: ${err.message}`;
+        } finally {
+          fixtures.innerHTML = "";
+        }
+        list.appendChild(li);
+      }
+      const summary = failed ? `FAIL ${failed}/${tests.length}` : `PASS ${tests.length}/${tests.length}`;
+      document.getElementById("summary").textContent = summary;
+      document.title = summary;
+    })();
+  </script>
+</body>
+</html>

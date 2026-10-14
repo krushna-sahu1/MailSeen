@@ -63,7 +63,8 @@
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
-    input[type="text"] {
+    input[type="text"],
+    input[type="password"] {
       width: 100%;
       background: #0f1115;
       border: 1px solid var(--border);
@@ -73,7 +74,8 @@
       font-size: 13px;
       outline: none;
     }
-    input[type="text"]:focus {
+    input[type="text"]:focus,
+    input[type="password"]:focus {
       border-color: var(--accent);
     }
     .hint {
@@ -158,6 +160,11 @@
           ⚠️ <strong>Localhost Warning:</strong> If your server URL is set to <code>localhost</code> or <code>127.0.0.1</code>, emails you send to other people <strong>cannot</strong> contact your computer, and Google's Image Proxy will reject the connection! For external tracking, you must use a public HTTPS URL (e.g. via <code>ngrok http 5000</code> or free hosting on Render).
         </div>
       </div>
+      <div class="form-group">
+        <label for="apiToken">API Token</label>
+        <input type="password" id="apiToken" placeholder="Value of MAILSEEN_API_TOKEN on the server" autocomplete="off" spellcheck="false">
+        <div class="hint">Sent as a bearer token on every request to your backend. Stored only on this device.</div>
+      </div>
     </div>
 
     <div class="card">
@@ -180,7 +187,7 @@
 
       <div class="form-group" style="margin-top: 14px;" id="disclosureGroup">
         <label for="disclosureText">Disclosure text</label>
-        <input type="text" id="disclosureText" placeholder="⚡ ">
+        <input type="text" id="disclosureText" placeholder="⚡ The sender is notified when this email is opened.">
       </div>
     </div>
 
@@ -203,6 +210,7 @@
     </div>
   </div>
 
+  <script src="common.js"></script>
   <script src="options.js"></script>
 </body>
 </html>

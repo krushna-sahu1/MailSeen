@@ -18,7 +18,7 @@ Now includes an **automatic Chrome Extension (Manifest V3)** for Gmail (like Mai
 - **Flask Backend (`app.py`)**:
   - Full **CORS support** allowing requests from `mail.google.com` and custom clients.
   - **Self-Open Filtering**: Exclude opens originating from your own IP address so inspecting your sent emails doesn't register false positives.
-  - **Transparency Disclosure**: Includes a clean, discreet footer line (`⚡ `) for transparency.
+  - **Transparency Disclosure**: Includes a clean, discreet footer line (`⚡ The sender is notified when this email is opened.`) so recipients know the email is tracked.
   - SQLite storage (`tracker.db`) with automatic schema setup and migrations.
   - Web dashboard (`/dashboard`) with live status badges, self-open filters, and detailed open history.
 
@@ -33,11 +33,35 @@ Install dependencies:
 pip install -r requirements.txt
 ```
 
+Configure authentication. Every API call and the dashboard require it, and the server refuses access when these are unset:
+```bash
+# Windows PowerShell
+$env:MAILSEEN_API_TOKEN="<long random string>"           # pasted into the extension popup
+$env:MAILSEEN_DASHBOARD_PASSWORD="<dashboard password>"  # used at /login
+$env:SECRET_KEY="<long random string>"                   # signs dashboard sessions
+$env:MAILSEEN_PROXY_HOPS="0"                             # no reverse proxy when running locally
+```
+Generate random values with `python -c "import secrets; print(secrets.token_urlsafe(32))"`.
+
 Run locally:
 ```bash
 python app.py
 ```
 Your backend will run at `http://localhost:5000`.
+
+| Variable | Purpose |
+|---|---|
+| `MAILSEEN_API_TOKEN` | Bearer token the extension sends to `/new`, `/api/*` |
+| `MAILSEEN_DASHBOARD_PASSWORD` | Password for the `/dashboard` login |
+| `SECRET_KEY` | Session signing key (random per process if unset, which logs you out on restart) |
+| `MAILSEEN_PROXY_HOPS` | Trusted reverse proxies in front of the app (default `1`, right for Render) |
+| `MAILSEEN_CORS_ORIGINS` | Extra origins allowed to call the API cross-origin (the extension doesn't need this) |
+| `MAILSEEN_SECURE_COOKIES` | Set to `0` to allow the session cookie over plain `http` (default `1`) |
+| `MAILSEEN_DATA_DIR` | Directory for `tracker.db` and `uploads/` (default: next to `app.py`; `/var/data` on Render) |
+| `MAILSEEN_DB_PATH`, `MAILSEEN_UPLOAD_DIR` | Override the database file / uploads directory individually |
+| `MAILSEEN_RETENTION_DAYS` | Delete emails, documents and opens older than this (default `90`; `0` keeps everything) |
+| `MAILSEEN_SENDER_IP_TTL_HOURS` | How long your IP counts as "self" for an email you just sent (default `6`) |
+| `MAILSEEN_MIN_HUMAN_SECONDS` | Fetches sooner than this after sending count as scanners (default `5`) |
 
 To filter your own IP via environment variable, you can optionally set:
 ```bash
@@ -55,7 +79,8 @@ python app.py
 4. Select the `extension` folder inside this repository (`E:\email-tracker\extension`).
 5. Click the extension icon in Chrome's toolbar to open the popup:
    - Verify or enter your backend URL (e.g. `http://localhost:5000` or your deployed HTTPS URL).
-   - Click **Test** to verify connection.
+   - Paste your `MAILSEEN_API_TOKEN` into **API Token** (stored only on this device, never synced or shared with Gmail).
+   - Click **Test** to verify connection and token.
    - Click **Filter My IP** to ensure your own opens are ignored.
    - Click **Save Settings**.
 
@@ -72,20 +97,36 @@ python app.py
    - Calls your backend to create a tracking ID.
    - Appends the invisible 1x1 image and disclosure footer:
      ```html
-     ⚡ 
+     ⚡ The sender is notified when this email is opened.
      ```
    - Sends the email immediately.
 5. Open your dashboard at `http://localhost:5000/dashboard` (or click **Open Dashboard ↗** in the extension popup) to see open events in real time.
 
 ---
 
-## Self-Open Filtering
+## Open Accuracy
 
-When you send an email, opening your Sent folder can inadvertently load the pixel. The tracker prevents false opens:
-- **Automatic IP Detection**: Visit `/dashboard` or click the extension popup to view your current IP.
-- **One-Click Filtering**: Click **Filter My Current IP** to store it in the database.
-- **Environment Variable**: Set `IGNORED_IPS="ip1,ip2"` for persistent static IP filtering.
-- Filtered opens are marked with a yellow **Self-Open** tag and excluded from the main recipient open count.
+An image load is not always a person reading your email. Every open is classified when it arrives, and that classification is never rewritten later, so the dashboard and the API always agree:
+
+| Kind | What it is | Counts as opened? |
+|---|---|---|
+| `human` | A mail client loading images when the message is opened | ✅ |
+| `proxy` | Gmail/Yahoo image proxy. These fetch only when the recipient opens the message, but hide their device and IP | ✅ |
+| `apple_mpp` | Apple Mail Privacy Protection prefetch on delivery (bare `Mozilla/5.0` UA or Apple's `17.0.0.0/8`) | ❌ shown as "🤖 automated" |
+| `scanner` | Security scanners and link checkers, scripts, `HEAD` probes, and anything within a few seconds of sending | ❌ shown as "🤖 automated" |
+
+**Your own opens** are excluded in three ways:
+- **Your sending IP**: for 6 hours after you send an email, opens from the IP you sent it from count as yours. This applies only to that email; it no longer adds your IP to a global ignore list forever.
+- **Your Gmail**: when you view your own tracked message (Sent folder, a thread, or quoted text in a reply), the extension hides the pixel and tells the backend, so Gmail's proxy fetch is recorded as yours. Older pixels quoted into a reply are removed before sending, so the reply's recipient doesn't trigger opens on earlier emails.
+- **Manual ignore list**: use **Filter My IP** in the popup, or set `IGNORED_IPS="ip1,ip2"`. This only affects opens from then on.
+
+**Document views** are recorded by the viewer page only after it has been visible for 2 seconds. Link scanners that just fetch the URL don't count.
+
+## Privacy
+
+- Tracked emails get a visible footer by default: `⚡ The sender is notified when this email is opened.` You can change the text in the popup. Existing installs that still had the old emoji-only default are upgraded automatically.
+- Recipient IPs are stored truncated (IPv4 `/24`, IPv6 `/48`), after self/scanner checks have used the full address. Your own sending IP is truncated once its 6-hour self-open window ends.
+- Emails, documents (including their files) and opens older than `MAILSEEN_RETENTION_DAYS` (90) are deleted automatically, at most once an hour.
 
 ---
 
@@ -116,26 +157,39 @@ Deploy this repository to Render.com:
 3. Set:
    - **Build Command**: `pip install -r requirements.txt`
    - **Start Command**: `gunicorn app:app`
-4. Set optional environment variable: `IGNORED_IPS` (your home/office public IP).
-5. Once deployed, copy your Render URL (e.g. `https://my-email-tracker.onrender.com`).
-6. In the Chrome Extension popup, set **Backend Server URL** to your Render URL and click **Save Settings**.
+4. `render.yaml` generates `SECRET_KEY` and `MAILSEEN_API_TOKEN` for you; set `MAILSEEN_DASHBOARD_PASSWORD` in the Render dashboard. Optionally set `IGNORED_IPS` (your home/office public IP).
+5. `render.yaml` attaches a 1 GB persistent disk at `/var/data` (`MAILSEEN_DATA_DIR`). **Persistent disks need a paid instance (`plan: starter`)**. On the free plan the database and uploads are wiped on every deploy and restart.
+6. Once deployed, copy your Render URL (e.g. `https://my-email-tracker.onrender.com`) and the generated `MAILSEEN_API_TOKEN` value.
+7. In the Chrome Extension popup, set **Backend Server URL** and **API Token**, then click **Save Settings**. For any backend other than `https://mailseen.onrender.com`, Chrome will ask you to allow the extension to reach that site.
 
 ---
 
 ## Backend API Endpoints
 
-- `GET/POST /new?label=<name>`: Creates a new tracking ID. Returns JSON with `tracking_id`, `pixel_url`, `html_snippet`, and `disclosure_html`.
-- `GET /track/<tracking_id>.png`: Serves the 1x1 transparent PNG and logs the open event.
-- `GET /dashboard`: Web dashboard to view all emails, open counts, and manage filtered IPs.
-- `GET /api/status/<tracking_id>`: JSON status of a specific email's opens.
-- `GET /api/my-ip`: Returns detected client IP and filter status.
-- `GET/POST /api/ignored-ips`: Lists or adds/removes IPs from the self-open filter.
+🔒 = requires `Authorization: Bearer <MAILSEEN_API_TOKEN>`, or a dashboard session plus an `X-CSRF-Token` header for writes.
+
+- 🔒 `POST /new`: Creates a new tracking ID from JSON `{"label": ..., "subject": ..., "recipients": ..., "attachment_ids": [...]}` (`subject`/`recipients` are optional; older clients' `"Subject -> recipients"` labels are parsed). Returns `tracking_id`, `pixel_url`, `html_snippet`, `disclosure_html` and `linked_attachment_ids` (only attachments not already linked to another email are linked).
+- `GET /track/<tracking_id>.png`: Serves the 1x1 transparent PNG and logs the open event with its `open_kind`.
+- 🔒 `GET /dashboard`: Web dashboard (redirects to `/login`). Supports `?q=` search, `?status=opened|waiting` and `?page=`.
+- 🔒 `GET /api/status/<tracking_id>`: JSON status. `opened`/`open_count` include only `human` and `proxy` opens; `automated_opens` and `self_open_count` are reported separately.
+- 🔒 `POST /api/self-view`: `{"tracking_ids": [...]}`. The extension reports that you are viewing these messages in Gmail.
+- `POST /view/<id>/seen`: View beacon sent by the viewer page (requires the signed token embedded in the page).
+- 🔒 `GET /api/my-ip`: Returns detected client IP and filter status.
+- 🔒 `GET/POST /api/ignored-ips`: Lists or adds/removes IPs from the self-open filter.
+- 🔒 `POST /api/upload-attachment`, `/api/delete-attachment`, `/api/delete-email`, `/api/clear-all`.
+- `GET /view/<id>`, `GET /file/<id>`: Public attachment viewer and file. Files are served with a server-detected type, `nosniff` and a sandbox CSP; only PDFs and PNG/JPEG/GIF render inline, everything else downloads.
 
 ---
 
 ## Running Tests
 
-Run the backend test suite:
+Run the backend test suite (uses throwaway databases; never touches your `tracker.db`):
 ```bash
-python test_backend.py
+python -m unittest test_backend
 ```
+
+The extension tests are dependency-free pages that load the real scripts with a stubbed `chrome` API. Serve the repository over HTTP (scripts are blocked on `file://`):
+```bash
+python -m http.server 5056 --bind 127.0.0.1
+```
+Then open `http://127.0.0.1:5056/tests/extension/content.test.html` and `http://127.0.0.1:5056/tests/extension/common.test.html`. The page title shows `PASS n/n` or the failures.

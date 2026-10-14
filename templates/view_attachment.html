@@ -269,5 +269,34 @@
   <div class="viewer-footer">
     Shared securely via <a href="/">MailSeen</a>
   </div>
+  <!-- A view is recorded only after the page has been visible for 2 seconds, so link scanners and
+       preview bots that fetch the page without showing it don't count. -->
+  <script id="view-beacon" data-beacon-url="{{ beacon_url }}" data-beacon-token="{{ beacon_token }}">
+    (function () {
+      const el = document.getElementById("view-beacon");
+      const url = el.dataset.beaconUrl;
+      const token = el.dataset.beaconToken;
+      let sent = false;
+      let timer = null;
+
+      function send() {
+        if (sent) return;
+        sent = true;
+        const body = new FormData();
+        body.append("token", token);
+        if (!(navigator.sendBeacon && navigator.sendBeacon(url, body))) {
+          fetch(url, { method: "POST", body, keepalive: true }).catch(() => {});
+        }
+      }
+
+      function arm() {
+        clearTimeout(timer);
+        if (document.visibilityState === "visible") timer = setTimeout(send, 2000);
+      }
+
+      document.addEventListener("visibilitychange", arm);
+      arm();
+    })();
+  </script>
 </body>
 </html>

@@ -1,15 +1,11 @@
 /**
- * Gmail Email Open Tracker - Popup Logic
+ * Gmail Email Open Tracker - Popup Logic (shared form helpers live in common.js)
  */
 
-document.addEventListener("DOMContentLoaded", async () => {
-  const elBackendUrl = document.getElementById("backendUrl");
+document.addEventListener("DOMContentLoaded", () => {
+  const form = settingsFormFromPage();
   const elBtnTest = document.getElementById("btnTest");
   const elTestMsg = document.getElementById("testMessage");
-  const elToggleTracking = document.getElementById("toggleTracking");
-  const elToggleDisclosure = document.getElementById("toggleDisclosure");
-  const elDisclosureText = document.getElementById("disclosureText");
-  const elDisclosureContainer = document.getElementById("disclosureTextContainer");
   const elStatusPill = document.getElementById("connectionStatus");
   const elCurrentIp = document.getElementById("currentIp");
   const elIpFilterStatus = document.getElementById("ipFilterStatus");
@@ -21,62 +17,32 @@ document.addEventListener("DOMContentLoaded", async () => {
   let detectedIp = "";
   let isIpFiltered = false;
 
-  // Load settings
-  chrome.runtime.sendMessage({ type: "GET_SETTINGS" }, (res) => {
-    if (res && res.success && res.settings) {
-      const s = res.settings;
-      elBackendUrl.value = s.backendUrl || "https://mailseen.onrender.com";
-      elToggleTracking.checked = s.trackingEnabled !== false;
-      elToggleDisclosure.checked = s.includeDisclosure !== false;
-      elDisclosureText.value = s.disclosureText || "⚡ ";
+  // On open, check the saved backend without prompting (no user gesture yet)
+  form.onLoaded = () => checkConnection({ interactive: false });
+  bindSettingsForm(form);
 
-      elDisclosureContainer.style.display = elToggleDisclosure.checked ? "block" : "none";
-
-      checkLocalhostNotice(elBackendUrl.value);
-      checkConnection(elBackendUrl.value);
-    }
-  });
-
-  function checkLocalhostNotice(url) {
-    const elNotice = document.getElementById("localhostNotice");
-    if (!elNotice) return;
-    const clean = (url || "").toLowerCase();
-    const isLocal = !clean || clean.includes("localhost") || clean.includes("127.0.0.1") || clean.includes("0.0.0.0");
-    elNotice.style.display = isLocal ? "block" : "none";
-  }
-
-  elBackendUrl.addEventListener("input", () => {
-    checkLocalhostNotice(elBackendUrl.value);
-  });
-
-  elToggleDisclosure.addEventListener("change", () => {
-    elDisclosureContainer.style.display = elToggleDisclosure.checked ? "block" : "none";
-  });
-
-  async function checkConnection(url) {
-    checkLocalhostNotice(url);
+  async function checkConnection(options) {
     setStatus("checking", "Checking...");
     elTestMsg.textContent = "";
     elTestMsg.className = "helper-text";
 
-    chrome.runtime.sendMessage({ type: "TEST_CONNECTION", backendUrl: url }, (res) => {
-      if (res && res.success && res.data) {
-        setStatus("connected", "Connected");
-        elTestMsg.textContent = "Backend reachable!";
-        elTestMsg.className = "helper-text success";
+    const res = await testSettingsForm(form, options);
+    if (res.success && res.data) {
+      setStatus("connected", "Connected");
+      elTestMsg.textContent = "Backend reachable!";
+      elTestMsg.className = "helper-text success";
 
-        detectedIp = res.data.ip || "--";
-        isIpFiltered = !!res.data.is_ignored;
-        updateIpFilterUI();
-      } else {
-        setStatus("disconnected", "Offline");
-        elTestMsg.textContent = res ? res.error : "Cannot reach server";
-        elTestMsg.className = "helper-text error";
-        elCurrentIp.textContent = "--";
-        elIpFilterStatus.textContent = "Unavailable";
-        elIpFilterStatus.className = "ip-filter-badge";
-      }
-    });
+      detectedIp = res.data.ip || "--";
+      isIpFiltered = !!res.data.is_ignored;
+      updateIpFilterUI();
+    } else {
+      setStatus("disconnected", "Offline");
+      elTestMsg.textContent = res.error || "Cannot reach server";
+      elTestMsg.className = "helper-text error";
+      elCurrentIp.textContent = "--";
+      elIpFilterStatus.textContent = "Unavailable";
+      elIpFilterStatus.className = "ip-filter-badge";
+    }
   }
 
   function setStatus(type, text) {
@@ -99,9 +65,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
 
-  elBtnTest.addEventListener("click", () => {
-    checkConnection(elBackendUrl.value.trim());
-  });
+  elBtnTest.addEventListener("click", () => checkConnection({ interactive: true }));
 
   elBtnToggleIp.addEventListener("click", () => {
     if (!detectedIp || detectedIp === "--") return;
@@ -120,27 +84,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     );
   });
 
-  elBtnSave.addEventListener("click", () => {
-    const newSettings = {
-      backendUrl: elBackendUrl.value.trim().replace(/\/+$/, ""),
-      trackingEnabled: elToggleTracking.checked,
-      includeDisclosure: elToggleDisclosure.checked,
-      disclosureText: elDisclosureText.value.trim()
-    };
-
-    chrome.runtime.sendMessage({ type: "SAVE_SETTINGS", settings: newSettings }, (res) => {
-      if (res && res.success) {
-        elSaveFeedback.textContent = "✓ Settings saved!";
-        setTimeout(() => {
-          elSaveFeedback.textContent = "";
-        }, 2500);
-        checkConnection(newSettings.backendUrl);
-      }
-    });
+  elBtnSave.addEventListener("click", async () => {
+    const res = await saveSettingsForm(form);
+    elSaveFeedback.textContent = res.success ? "✓ Settings saved!" : `✗ ${res.error}`;
+    setTimeout(() => {
+      elSaveFeedback.textContent = "";
+    }, 2500);
+    if (res.success) checkConnection({ interactive: false });
   });
 
   elBtnOpenDashboard.addEventListener("click", () => {
-    const url = (elBackendUrl.value.trim() || "https://mailseen.onrender.com").replace(/\/+$/, "") + "/dashboard";
-    chrome.tabs.create({ url: url });
+    chrome.tabs.create({ url: normalizeBackendUrl(form.backendUrl.value) + "/dashboard" });
   });
 });

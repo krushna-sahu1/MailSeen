@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <title>MailSeen · Email & Document Tracker</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="csrf-token" content="{{ session.csrf_token }}" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
@@ -296,6 +297,25 @@
       background: var(--surface-elevated);
       color: var(--text);
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    }
+
+    a.tab-btn,
+    a.btn {
+      display: inline-block;
+      text-decoration: none;
+    }
+
+    .pagination {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin: 18px 0 8px;
+    }
+
+    .pagination-label {
+      font-size: 12px;
+      color: var(--text-muted);
     }
 
     /* Section titles */
@@ -789,6 +809,10 @@
           🗑️ Clear All
         </button>
         {% endif %}
+        <form method="post" action="/logout" style="display: contents;">
+          <input type="hidden" name="csrf_token" value="{{ session.csrf_token }}" />
+          <button type="submit" class="btn">Log out</button>
+        </form>
       </div>
     </header>
 
@@ -836,20 +860,28 @@
 
     <!-- Search & Filter Controls -->
     <div class="controls-row">
-      <div class="search-wrap">
+      <form class="search-wrap" method="get" action="{{ url_for('dashboard') }}">
         <span class="search-icon">🔍</span>
-        <input type="text" id="searchInput" class="search-input" placeholder="Search by subject, recipient..." oninput="handleSearch(this.value)" />
-      </div>
+        <input type="search" id="searchInput" name="q" value="{{ filters.q }}" class="search-input" placeholder="Search by subject, recipient... (Enter)" />
+        <input type="hidden" name="status" value="{{ filters.status }}" />
+      </form>
 
       <div class="filter-tabs">
-        <button type="button" class="tab-btn is-active" data-filter="all" onclick="setFilter('all', this)">All ({{ stats.total_emails }})</button>
-        <button type="button" class="tab-btn" data-filter="opened" onclick="setFilter('opened', this)">Opened ({{ stats.opened_emails }})</button>
-        <button type="button" class="tab-btn" data-filter="waiting" onclick="setFilter('waiting', this)">Waiting ({{ stats.unopened_emails }})</button>
+        {% for key, label, count in [('all', 'All', stats.total_emails), ('opened', 'Opened', stats.opened_emails), ('waiting', 'Waiting', stats.unopened_emails)] %}
+        <a class="tab-btn {% if filters.status == key %}is-active{% endif %}"
+           href="{{ url_for('dashboard', status=key, q=filters.q or None) }}">{{ label }} ({{ count }})</a>
+        {% endfor %}
       </div>
     </div>
 
     <!-- Email List -->
-    {% if not emails and not standalone_attachments %}
+    {% if not emails and (filters.q or filters.status != 'all') %}
+    <div class="empty-state">
+      <div class="empty-icon">🔍</div>
+      <div class="empty-title">No emails match</div>
+      <div class="empty-sub"><a href="{{ url_for('dashboard') }}" style="color: var(--primary-hover);">Clear filters</a></div>
+    </div>
+    {% elif not emails and not standalone_attachments %}
     <div class="empty-state">
       <div class="empty-icon">📬</div>
       <div class="empty-title">No tracked emails yet</div>
@@ -868,15 +900,9 @@
         <div class="email-header">
           <div class="email-details">
             <div class="email-title-line">
-              <span class="email-subject">
-                {% if '->' in e.label %}
-                  {{ e.label.split('->')[0].strip() }}
-                {% else %}
-                  {{ e.label }}
-                {% endif %}
-              </span>
-              {% if '->' in e.label %}
-                <span class="email-recipient-tag">{{ e.label.split('->')[1].strip() }}</span>
+              <span class="email-subject">{{ e.subject or e.label }}</span>
+              {% if e.recipients %}
+                <span class="email-recipient-tag">{{ e.recipients }}</span>
               {% endif %}
             </div>
 
@@ -902,6 +928,10 @@
                 </span>
               {% else %}
                 <span class="badge-waiting">⏳ Waiting for open</span>
+              {% endif %}
+
+              {% if e.automated_open_count > 0 %}
+                <span class="badge-waiting" title="Apple Mail Privacy Protection prefetches and security scanners load images without anyone reading the email, so they don't count as opens.">🤖 {{ e.automated_open_count }} automated</span>
               {% endif %}
 
               {% if e.attachment_count > 0 %}
@@ -989,6 +1019,18 @@
       </div>
       {% endfor %}
     </div>
+
+    {% if pagination.page_count > 1 %}
+    <nav class="pagination" aria-label="Pages">
+      {% if pagination.page > 1 %}
+      <a class="btn" href="{{ url_for('dashboard', page=pagination.page - 1, status=filters.status, q=filters.q or None) }}">← Newer</a>
+      {% endif %}
+      <span class="pagination-label">Page {{ pagination.page }} of {{ pagination.page_count }} · {{ pagination.total }} emails</span>
+      {% if pagination.page < pagination.page_count %}
+      <a class="btn" href="{{ url_for('dashboard', page=pagination.page + 1, status=filters.status, q=filters.q or None) }}">Older →</a>
+      {% endif %}
+    </nav>
+    {% endif %}
 
     {% if standalone_attachments %}
     <div class="section-heading">
@@ -1116,6 +1158,18 @@
     renderAllTimes();
     renderProgressBar();
 
+    // Same-origin API calls carry the session's CSRF token; an expired session goes back to login.
+    const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]').content;
+    async function apiFetch(url, options = {}) {
+      const headers = { ...(options.headers || {}), 'X-CSRF-Token': CSRF_TOKEN };
+      const res = await fetch(url, { ...options, headers, credentials: 'same-origin' });
+      if (res.status === 401) {
+        location.href = '/login?next=/dashboard';
+        throw new Error('Session expired');
+      }
+      return res;
+    }
+
     // Toast
     let toastTimer = null;
     function showToast(msg, icon = "✓") {
@@ -1161,7 +1215,7 @@
     async function deleteEmail(id) {
       if (!confirm("Delete this email record and linked attachments?")) return;
       try {
-        const res = await fetch('/api/delete-email', {
+        const res = await apiFetch('/api/delete-email', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ tracking_id: id })
@@ -1182,7 +1236,7 @@
     async function deleteAttachment(id) {
       if (!confirm("Delete this tracked attachment?")) return;
       try {
-        const res = await fetch('/api/delete-attachment', {
+        const res = await apiFetch('/api/delete-attachment', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ attachment_id: id })
@@ -1203,7 +1257,7 @@
     async function clearAllEmails() {
       if (!confirm("Delete ALL tracked emails, attachments, and open history?")) return;
       try {
-        const res = await fetch('/api/clear-all', { method: 'POST' });
+        const res = await apiFetch('/api/clear-all', { method: 'POST' });
         const data = await res.json();
         if (data.success) {
           showToast("All data cleared");
@@ -1214,46 +1268,15 @@
       }
     }
 
-    // Search and Tabs
-    let currentFilter = 'all';
-    let currentSearch = '';
-
-    function setFilter(f, btn) {
-      currentFilter = f;
-      document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("is-active"));
-      btn.classList.add("is-active");
-      filterCards();
-    }
-
-    function handleSearch(val) {
-      currentSearch = (val || "").toLowerCase().trim();
-      filterCards();
-    }
-
-    function filterCards() {
-      document.querySelectorAll(".email-card").forEach(card => {
-        const status = card.getAttribute("data-status");
-        const label = card.getAttribute("data-label") || "";
-
-        let matchTab = true;
-        if (currentFilter === 'opened') matchTab = (status === 'opened');
-        else if (currentFilter === 'waiting') matchTab = (status === 'waiting');
-
-        let matchSearch = true;
-        if (currentSearch) {
-          matchSearch = label.includes(currentSearch);
-        }
-
-        card.style.display = (matchTab && matchSearch) ? "block" : "none";
-      });
-    }
-
-    // Auto-refresh countdown
+    // Auto-refresh countdown (paused while typing a search so the reload doesn't eat the input)
     let countdown = 15;
     const elLabel = document.getElementById("refreshLabel");
     document.getElementById("btnRefresh").addEventListener("click", () => location.reload());
 
+    const elSearch = document.getElementById("searchInput");
+
     setInterval(() => {
+      if (document.activeElement === elSearch) return;
       countdown--;
       if (countdown <= 0) {
         location.reload();

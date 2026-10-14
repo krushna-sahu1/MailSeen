@@ -2,8 +2,23 @@ services:
   - type: web
     name: email-tracker
     runtime: python
+    # Persistent disks need a paid instance type; on the free plan tracker.db and uploads/
+    # are wiped on every deploy and restart.
+    plan: starter
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app
+    disk:
+      name: mailseen-data
+      mountPath: /var/data
+      sizeGB: 1
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.9
+      - key: MAILSEEN_DATA_DIR
+        value: /var/data
+      - key: SECRET_KEY
+        generateValue: true
+      - key: MAILSEEN_API_TOKEN
+        generateValue: true
+      - key: MAILSEEN_DASHBOARD_PASSWORD
+        sync: false

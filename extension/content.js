@@ -8,11 +8,30 @@
  */
 
 (function () {
+  // DEFAULT_* constants come from common.js, listed before this file in manifest.json
   let globalSettings = {
     trackingEnabled: true,
     includeDisclosure: true,
-    disclosureText: "⚡ "
+    disclosureText: DEFAULT_DISCLOSURE_TEXT
   };
+
+  function escapeHtml(value) {
+    return String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  function safeHttpUrl(value) {
+    try {
+      const url = new URL(value);
+      return url.protocol === "https:" || url.protocol === "http:" ? url.href : "";
+    } catch {
+      return "";
+    }
+  }
 
   // Sync settings from storage/background
   function refreshSettings() {
@@ -24,8 +43,8 @@
   }
   refreshSettings();
 
-  // Re-check settings periodically
-  setInterval(refreshSettings, 30000);
+  // Pick up changes saved from the popup/options page immediately, instead of polling
+  chrome.storage.onChanged.addListener(refreshSettings);
 
   // ─── Compose Container Detection ───────────────────────────────────
 
@@ -142,6 +161,66 @@
     return Array.from(recipients).join(", ");
   }
 
+  // ─── Own-Pixel Suppression ─────────────────────────────────────────
+  // When the sender reads their own tracked message (Sent folder, a thread, or quoted text in a
+  // reply), Gmail loads the pixel through its image proxy. That fetch looks exactly like the recipient
+  // opening the email, so hide the pixel and tell the backend the proxy fetch was ours.
+
+  const TRACKING_PIXEL_RE = /\/track\/([0-9a-f]{32})\.png/;
+  const SELF_VIEW_DEDUPE_MS = 30000;
+  const recentSelfViews = new Map(); // tracking_id -> last reported timestamp
+  const pendingSelfViews = new Set();
+  let selfViewTimer = null;
+
+  function backendHost() {
+    try {
+      return new URL(globalSettings.backendUrl).host;
+    } catch {
+      return null;
+    }
+  }
+
+  // Matches both our direct pixel URL and Gmail's proxy URL, which keeps the original after "#".
+  function trackingIdFromImg(img, host) {
+    const src = img.getAttribute("src") || "";
+    if (!host || !src.includes(host)) return null;
+    const match = src.match(TRACKING_PIXEL_RE);
+    return match ? match[1] : null;
+  }
+
+  function queueSelfView(trackingId) {
+    const now = Date.now();
+    if (now - (recentSelfViews.get(trackingId) || 0) < SELF_VIEW_DEDUPE_MS) return;
+    recentSelfViews.set(trackingId, now);
+    pendingSelfViews.add(trackingId);
+    clearTimeout(selfViewTimer);
+    selfViewTimer = setTimeout(() => {
+      const ids = Array.from(pendingSelfViews);
+      pendingSelfViews.clear();
+      chrome.runtime.sendMessage({ type: "SELF_VIEW", tracking_ids: ids }, () => void chrome.runtime.lastError);
+    }, 250);
+  }
+
+  function suppressOwnPixels() {
+    const host = backendHost();
+    if (!host) return;
+    document.querySelectorAll('img[src*="/track/"]').forEach((img) => {
+      // The pixel we just injected into an outgoing draft must stay
+      if (img.closest(".email-tracker-container")) return;
+      const trackingId = trackingIdFromImg(img, host);
+      if (!trackingId) return;
+
+      queueSelfView(trackingId);
+      if (img.closest('[contenteditable="true"]')) {
+        // Quoted in a reply: drop it so the recipient of the reply doesn't trigger the old email
+        img.remove();
+      } else {
+        img.removeAttribute("src");
+        img.style.display = "none";
+      }
+    });
+  }
+
   // ─── Tracked Attachment State ───────────────────────────────────────
 
   // Each compose box maintains its own list of tracked attachments
@@ -198,7 +277,7 @@
     try {
       const response = await new Promise((resolve) => {
         chrome.runtime.sendMessage(
-          { type: "CREATE_TRACKER", label: label, attachment_ids: attachmentIds },
+          { type: "CREATE_TRACKER", label, subject, recipients, attachment_ids: attachmentIds },
           (res) => {
             resolve(res || { success: false, error: "No response from extension background" });
           }
@@ -221,26 +300,59 @@
 
       injectTrackingContent(body, response);
 
-      // Successfully injected
+      // Gmail reacts to the edit by re-syncing its draft, which can rewrite the body. Wait until it
+      // has settled, and put the pixel back if Gmail's re-render dropped it, before sending.
+      let present = await waitForDraftToSettle(body, response.tracking_id);
+      if (!present) {
+        injectTrackingContent(body, response);
+        present = await waitForDraftToSettle(body, response.tracking_id);
+      }
+      if (!present) console.warn("[EmailTracker] Tracking pixel was removed by Gmail; sending without it");
+
       composeBox.dataset.trackerInjected = "true";
       composeBox.dataset.trackerProcessing = "false";
       sendButton.classList.remove("tracker-btn-loading");
       if (origTooltip) sendButton.setAttribute("data-tooltip", origTooltip);
 
-      // Re-trigger the native Send click after allowing Gmail's draft serializer to sync the DOM
-      setTimeout(() => {
-        sendButton.click();
-      }, 200);
+      sendButton.click();
     } catch (err) {
       console.error("[EmailTracker] Exception during tracking injection:", err);
       showServerFallbackBanner(composeBox, sendButton, err.message);
     }
   }
 
+  // Resolves once `body` has had no DOM mutations for quietMs (capped at timeoutMs), with whether
+  // our tracker node is still in it. Replaces a fixed delay that was either too short or wasted time.
+  function waitForDraftToSettle(body, trackingId, { quietMs = 80, timeoutMs = 1500 } = {}) {
+    return new Promise((resolve) => {
+      let quietTimer = null;
+      let hardTimeout = null;
+      const finish = () => {
+        observer.disconnect();
+        clearTimeout(quietTimer);
+        clearTimeout(hardTimeout);
+        resolve(!!body.querySelector(`[data-email-tracker="${trackingId}"] img`));
+      };
+      const observer = new MutationObserver(() => {
+        clearTimeout(quietTimer);
+        quietTimer = setTimeout(finish, quietMs);
+      });
+      observer.observe(body, { childList: true, subtree: true, attributes: true, characterData: true });
+      quietTimer = setTimeout(finish, quietMs);
+      hardTimeout = setTimeout(finish, timeoutMs);
+    });
+  }
+
   function injectTrackingContent(body, data) {
     if (body.querySelector(`[data-email-tracker="${data.tracking_id}"]`)) {
       return;
     }
+
+    // Older pixels quoted from earlier messages in the thread would report opens for those emails
+    const host = backendHost();
+    body.querySelectorAll("img").forEach((img) => {
+      if (!img.closest(".email-tracker-container") && trackingIdFromImg(img, host)) img.remove();
+    });
 
     const container = document.createElement("div");
     container.setAttribute("data-email-tracker", data.tracking_id);
@@ -265,7 +377,7 @@
       footer.className = "email-tracker-disclosure";
       footer.style.cssText =
         "color: #888888; font-size: 11px; margin-top: 16px; padding-top: 6px; border-top: 1px solid #eeeeee; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.4;";
-      footer.textContent = data.disclosure_text || "⚡ ";
+      footer.textContent = data.disclosure_text || DEFAULT_DISCLOSURE_TEXT;
       container.appendChild(footer);
     }
 
@@ -287,12 +399,14 @@
     const banner = document.createElement("div");
     banner.className = "tracker-fallback-banner";
     banner.innerHTML = `
-      <div class="tracker-banner-text">⚠️ <strong>Tracker offline:</strong> ${errorMsg}</div>
+      <div class="tracker-banner-text">⚠️ <strong>Tracker offline:</strong> <span class="tracker-banner-error"></span></div>
       <div class="tracker-banner-actions">
         <button type="button" class="tracker-banner-btn tracker-btn-send-now">Send Untracked</button>
         <button type="button" class="tracker-banner-btn tracker-btn-cancel">Cancel</button>
       </div>
     `;
+    // Server/network error text is data, never markup
+    banner.querySelector(".tracker-banner-error").textContent = errorMsg || "Unknown error";
 
     banner.querySelector(".tracker-btn-send-now").onclick = (e) => {
       e.preventDefault();
@@ -321,6 +435,15 @@
     const existingCard = body.querySelector(`[data-tracked-attachment="${attachmentData.attachment_id}"]`);
     if (existingCard) return;
 
+    // This HTML is sent to the recipient, so every server-supplied value is escaped
+    const filename = escapeHtml(attachmentData.filename);
+    const sizeDisplay = escapeHtml(attachmentData.file_size_display);
+    const viewUrl = escapeHtml(safeHttpUrl(attachmentData.view_url));
+    if (!viewUrl) {
+      console.warn("[EmailTracker] Refusing attachment card with a non-http view URL");
+      return;
+    }
+
     const card = document.createElement("div");
     card.setAttribute("data-tracked-attachment", attachmentData.attachment_id);
     card.style.cssText =
@@ -336,8 +459,8 @@
                   <div style="width: 38px; height: 38px; background: linear-gradient(135deg, #ef4444, #f97316); border-radius: 8px; text-align: center; line-height: 38px; font-size: 18px;">📄</div>
                 </td>
                 <td style="padding-left: 12px; vertical-align: middle;">
-                  <div style="font-size: 14px; font-weight: 600; color: #1a1a1a; line-height: 1.3; margin-bottom: 2px;">${attachmentData.filename}</div>
-                  <div style="font-size: 12px; color: #888888;">${attachmentData.file_size_display}</div>
+                  <div style="font-size: 14px; font-weight: 600; color: #1a1a1a; line-height: 1.3; margin-bottom: 2px;">${filename}</div>
+                  <div style="font-size: 12px; color: #888888;">${sizeDisplay}</div>
                 </td>
               </tr>
             </table>
@@ -345,7 +468,7 @@
         </tr>
         <tr>
           <td style="padding: 0 18px 16px;">
-            <a href="${attachmentData.view_url}" target="_blank" style="display: inline-block; padding: 9px 22px; background: linear-gradient(135deg, #4f46e5, #6366f1); color: #ffffff; text-decoration: none; border-radius: 7px; font-size: 13px; font-weight: 600; letter-spacing: 0.01em;">📥 View Document</a>
+            <a href="${viewUrl}" target="_blank" style="display: inline-block; padding: 9px 22px; background: linear-gradient(135deg, #4f46e5, #6366f1); color: #ffffff; text-decoration: none; border-radius: 7px; font-size: 13px; font-weight: 600; letter-spacing: 0.01em;">📥 View Document</a>
           </td>
         </tr>
         <tr>
@@ -470,8 +593,9 @@
     el.className = "tracker-upload-progress";
     el.innerHTML = `
       <div class="tracker-upload-spinner"></div>
-      <span class="tracker-upload-text">Uploading ${fileName}...</span>
+      <span class="tracker-upload-text"></span>
     `;
+    el.querySelector(".tracker-upload-text").textContent = `Uploading ${fileName}...`;
 
     // Place it near the bottom of the compose box
     const body = findMessageBody(composeBox);
@@ -487,7 +611,10 @@
   function updateUploadProgress(el, status, message) {
     if (!el) return;
     el.className = `tracker-upload-progress tracker-upload-${status}`;
-    el.innerHTML = `<span class="tracker-upload-text">${message}</span>`;
+    const text = document.createElement("span");
+    text.className = "tracker-upload-text";
+    text.textContent = message;
+    el.replaceChildren(text);
 
     // Auto-remove after a delay
     setTimeout(() => {
@@ -701,12 +828,26 @@
     true
   );
 
-  const observer = new MutationObserver(() => {
-    scanComposeWindows();
-  });
+  // Gmail mutates the DOM constantly. Coalesce bursts into at most one scan per SCAN_THROTTLE_MS
+  // (a throttle, not a debounce, so a page that never stops mutating still gets scanned).
+  const SCAN_THROTTLE_MS = 100;
+  let scanScheduled = false;
 
+  function runScans() {
+    scanScheduled = false;
+    scanComposeWindows();
+    suppressOwnPixels();
+  }
+
+  function scheduleScan() {
+    if (scanScheduled) return;
+    scanScheduled = true;
+    setTimeout(runScans, SCAN_THROTTLE_MS);
+  }
+
+  const observer = new MutationObserver(scheduleScan);
   observer.observe(document.body, { childList: true, subtree: true });
-  scanComposeWindows();
+  runScans();
 
   console.log("[EmailTracker] Gmail Email Open Tracker content script loaded (with attachment tracking).");
 })();

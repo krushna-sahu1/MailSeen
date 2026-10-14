@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>common.js tests</title>
+  <style>
+    body { font: 13px/1.5 ui-monospace, Menlo, Consolas, monospace; padding: 16px; background: #fff; color: #111; }
+    .pass { color: #067d3b; }
+    .fail { color: #b3261e; font-weight: 600; }
+    #form { position: absolute; left: -9999px; }
+  </style>
+</head>
+<body>
+  <h1 id="summary">Running…</h1>
+  <ul id="results"></ul>
+
+  <div id="form">
+    <input id="backendUrl"><input id="apiToken">
+    <input type="checkbox" id="toggleTracking"><input type="checkbox" id="toggleDisclosure">
+    <input id="disclosureText"><div id="disclosureGroup"></div><div id="localhostNotice"></div>
+  </div>
+
+  <script>
+    const sent = [];
+    const permissionRequests = [];
+    let grantPermission = true;
+    let storedSettings = {};
+    window.chrome = {
+      runtime: {
+        sendMessage(message, callback) {
+          sent.push(message);
+          const reply = message.type === "GET_SETTINGS"
+            ? { success: true, settings: storedSettings }
+            : { success: true, data: { ip: "203.0.113.5", is_ignored: false } };
+          if (callback) setTimeout(() => callback(reply), 0);
+        }
+      },
+      permissions: {
+        request: async ({ origins }) => {
+          permissionRequests.push(...origins);
+          return grantPermission;
+        },
+        contains: async () => grantPermission
+      }
+    };
+  </script>
+  <script src="../../extension/common.js"></script>
+  <script>
+    function assert(condition, message) {
+      if (!condition) throw new Error(message || "assertion failed");
+    }
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const tests = [];
+    const test = (name, fn) => tests.push([name, fn]);
+    const form = settingsFormFromPage();
+
+    function reset(settings = {}) {
+      sent.length = 0;
+      permissionRequests.length = 0;
+      grantPermission = true;
+      fillSettingsForm(form, settings);
+    }
+
+    test("origin patterns drop ports and paths, reject non-http", () => {
+      assert(backendOriginPattern("https://mail.example.com:8443/x") === "https://mail.example.com/*");
+      assert(backendOriginPattern("http://localhost:5000") === "http://localhost/*");
+      assert(backendOriginPattern("ftp://example.com") === null);
+      assert(backendOriginPattern("not a url") === null);
+    });
+
+    test("defaults are filled in and URLs normalised", () => {
+      reset({});
+      assert(form.backendUrl.value === DEFAULT_BACKEND_URL, "default backend");
+      assert(form.disclosureText.value === DEFAULT_DISCLOSURE_TEXT, "default disclosure");
+      form.backendUrl.value = "https://example.com///";
+      assert(readSettingsForm(form).backendUrl === "https://example.com");
+    });
+
+    test("save requests host permission for the backend first", async () => {
+      reset({ backendUrl: "https://my-backend.example:8443" });
+      const res = await saveSettingsForm(form);
+      assert(res.success, "save should succeed");
+      assert(permissionRequests[0] === "https://my-backend.example/*", `requested ${permissionRequests[0]}`);
+      assert(sent.some((m) => m.type === "SAVE_SETTINGS"), "settings should be saved");
+    });
+
+    test("save does nothing if permission is denied", async () => {
+      reset({ backendUrl: "https://my-backend.example" });
+      grantPermission = false;
+      const res = await saveSettingsForm(form);
+      assert(!res.success && /not granted/.test(res.error), "should report denial");
+      assert(!sent.some((m) => m.type === "SAVE_SETTINGS"), "must not save without access");
+    });
+
+    test("non-interactive test never prompts", async () => {
+      reset({ backendUrl: "https://my-backend.example" });
+      await testSettingsForm(form, { interactive: false });
+      assert(permissionRequests.length === 0, "no permission prompt without a user gesture");
+      assert(sent.some((m) => m.type === "TEST_CONNECTION"), "connection test still runs");
+    });
+
+    test("localhost notice and disclosure group follow the inputs", () => {
+      reset({ backendUrl: "http://localhost:5000", includeDisclosure: false });
+      assert(form.localhostNotice.style.display === "block", "localhost notice shown");
+      assert(form.disclosureGroup.style.display === "none", "disclosure text hidden when off");
+    });
+
+    (async () => {
+      const list = document.getElementById("results");
+      if (typeof backendOriginPattern !== "function") {
+        document.getElementById("summary").textContent = document.title = "FAIL common.js did not load";
+        return;
+      }
+      let failed = 0;
+      for (const [name, fn] of tests) {
+        const li = document.createElement("li");
+        try {
+          await fn();
+          li.className = "pass";
+          li.textContent = `PASS ${name}`;
+        } catch (err) {
+          failed++;
+          li.className = "fail";
+          li.textContent = `FAIL ${name}: ${err.message}`;
+        }
+        list.appendChild(li);
+      }
+      const summary = failed ? `FAIL ${failed}/${tests.length}` : `PASS ${tests.length}/${tests.length}`;
+      document.getElementById("summary").textContent = summary;
+      document.title = summary;
+    })();
+  </script>
+</body>
+</html>

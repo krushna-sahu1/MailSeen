@@ -26,6 +26,8 @@
         <input type="text" id="backendUrl" placeholder="https://mailseen.onrender.com" autocomplete="off" spellcheck="false" />
         <button type="button" id="btnTest" class="btn btn-secondary">Test</button>
       </div>
+      <label for="apiToken" class="field-label" style="margin-top: 10px;">API Token</label>
+      <input type="password" id="apiToken" placeholder="Value of MAILSEEN_API_TOKEN on the server" autocomplete="off" spellcheck="false" />
       <div id="testMessage" class="helper-text"></div>
       <div id="localhostNotice" style="display:none; margin-top:8px; padding:8px 10px; background:rgba(245,166,35,0.12); border:1px solid rgba(245,166,35,0.3); border-radius:6px; font-size:11px; color:#f5a623; line-height:1.4;">
         ⚠️ <strong>Localhost Warning:</strong> Emails tracked with <code>localhost</code> will <strong>only</strong> register opens on this computer! External recipients & Google cannot reach your local machine. Use a public HTTPS URL (e.g. <code>ngrok http 5000</code> or Render).
@@ -55,9 +57,9 @@
         </label>
       </div>
 
-      <div id="disclosureTextContainer" class="sub-field" style="margin-top: 10px;">
+      <div id="disclosureGroup" class="sub-field" style="margin-top: 10px;">
         <label for="disclosureText" class="field-label">Disclosure text</label>
-        <input type="text" id="disclosureText" placeholder="⚡ " />
+        <input type="text" id="disclosureText" placeholder="⚡ The sender is notified when this email is opened." />
       </div>
     </div>
 
@@ -81,6 +83,7 @@
     <div id="saveFeedback" class="save-feedback"></div>
   </div>
 
+  <script src="common.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

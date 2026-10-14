@@ -123,7 +123,8 @@ h1 {
   gap: 8px;
 }
 
-input[type="text"] {
+input[type="text"],
+input[type="password"] {
   flex: 1;
   background: #0f1115;
   border: 1px solid #262b36;
@@ -135,7 +136,8 @@ input[type="text"] {
   transition: border-color 0.2s;
 }
 
-input[type="text"]:focus {
+input[type="text"]:focus,
+input[type="password"]:focus {
   border-color: #5b8cff;
 }
 
